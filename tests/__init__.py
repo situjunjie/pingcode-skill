@@ -1,0 +1,1 @@
+"""PingCode skill tests."""
