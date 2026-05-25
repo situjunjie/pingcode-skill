@@ -206,3 +206,36 @@ Built and committed a self-contained GitHub Pages landing page for PingCode Skil
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Multi-agent installer for npx pingcode-skill
+
+**Date**: 2026-05-25
+**Task**: Multi-agent installer for npx pingcode-skill
+**Branch**: `main`
+
+### Summary
+
+Default npx pingcode-skill@latest now installs pingcode + pingcode-ctx into all four agent skill homes (Codex / Claude Code / OpenClaw / Hermes under project-management/) in one run. Per-root failures isolated with [ok]/[fail] summary and exit code 2 on partial success. Added --codex-only / --claude-only / --openclaw-only / --hermes-only mutually-exclusive flags; --target preserved as back-compat single-target escape hatch. README and index.html restructured around one-shot story with explicit update command. Spec doc captures new installer contract. Out-of-scope changes from sub-agent (auto-gitignore in scripts/pingcode.py + tests) reverted before commit.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `def63d1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
