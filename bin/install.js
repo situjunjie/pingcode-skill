@@ -12,6 +12,7 @@ const codexHome = process.env.CODEX_HOME
 const skillName = process.env.PINGCODE_SKILL_NAME || "pingcode";
 const targetDir = path.join(codexHome, "skills", skillName);
 const sourceEntries = ["SKILL.md", "README.md", "agents", "references", "scripts", "bin/pingcode-ctx.js"];
+const aliasSkillEntries = ["skills/pingcode-ctx/SKILL.md"];
 
 function usage() {
   return [
@@ -90,6 +91,28 @@ function rewriteInstalledDocs(destinationRoot) {
   }
 }
 
+function installAliasSkill(destinationRoot) {
+  const aliasRoot = path.join(path.dirname(destinationRoot), "pingcode-ctx");
+  fs.rmSync(aliasRoot, { recursive: true, force: true });
+  fs.mkdirSync(aliasRoot, { recursive: true });
+  for (const entry of aliasSkillEntries) {
+    const source = path.join(packageRoot, entry);
+    const destination = path.join(aliasRoot, path.basename(entry));
+    fs.copyFileSync(source, destination);
+  }
+  const cliCommand = `python3 ${shellQuote(path.join(destinationRoot, "scripts", "pingcode.py"))}`;
+  const ctxCommand = `python3 ${shellQuote(path.join(destinationRoot, "scripts", "pingcode_ctx.py"))}`;
+  const skillDoc = path.join(aliasRoot, "SKILL.md");
+  const original = fs.readFileSync(skillDoc, "utf8");
+  fs.writeFileSync(
+    skillDoc,
+    original
+      .replaceAll("python3 scripts/pingcode_ctx.py", ctxCommand)
+      .replaceAll("python3 scripts/pingcode.py", cliCommand),
+  );
+  return aliasRoot;
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -109,8 +132,10 @@ function main() {
     copyEntry(entry, options.target);
   }
   rewriteInstalledDocs(options.target);
+  const aliasTarget = installAliasSkill(options.target);
 
   console.log(`Installed PingCode skill to ${options.target}`);
+  console.log(`Installed PingCode context skill to ${aliasTarget}`);
   console.log("");
   console.log("Configure PingCode credentials before use:");
   console.log('  export PINGCODE_CLIENT_ID="..."');

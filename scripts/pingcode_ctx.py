@@ -20,15 +20,16 @@ def page_values(payload: Any) -> list[dict[str, Any]]:
 
 
 def display_name(item: dict[str, Any]) -> str:
-    for key in ("name", "display_name", "identifier", "email", "id"):
-        value = item.get(key)
+    entity = pingcode.normalized_entity(item)
+    for key in ("display_name", "name", "identifier", "email", "id"):
+        value = entity.get(key)
         if isinstance(value, str) and value:
             return value
     return "<unnamed>"
 
 
 def item_id(item: dict[str, Any], label: str) -> str:
-    value = item.get("id")
+    value = pingcode.normalized_entity(item).get("id")
     if not isinstance(value, str) or not value:
         raise pingcode.PingCodeError(f"Selected {label} has no id")
     return value
@@ -39,11 +40,15 @@ def prompt_choice(label: str, items: list[dict[str, Any]], input_func=input) -> 
         raise pingcode.PingCodeError(f"No {label} options are available")
     print(f"\nSelect current {label}:")
     for index, item in enumerate(items, start=1):
+        entity = pingcode.normalized_entity(item)
         details = []
-        item_identifier = item.get("identifier")
-        item_email = item.get("email")
+        item_identifier = entity.get("identifier")
+        item_email = entity.get("email")
+        item_name = entity.get("name")
         if isinstance(item_identifier, str) and item_identifier:
             details.append(item_identifier)
+        if isinstance(item_name, str) and item_name and item_name != display_name(item):
+            details.append(item_name)
         if isinstance(item_email, str) and item_email:
             details.append(item_email)
         suffix = f" ({', '.join(details)})" if details else ""

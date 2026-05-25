@@ -16,6 +16,7 @@ npx pingcode-skill@latest
 
 ```text
 ~/.codex/skills/pingcode
+~/.codex/skills/pingcode-ctx
 ```
 
 安装到 Claude Code：
@@ -79,7 +80,9 @@ npx pingcode-skill@latest --force
 3. 如果你无法判断当前 Agent 类型，请先询问我是 Codex 还是 Claude Code，再选择对应命令。
 4. 安装后请检查 skill 入口文件是否存在：
    - Codex: ~/.codex/skills/pingcode/SKILL.md
+   - Codex 上下文初始化: ~/.codex/skills/pingcode-ctx/SKILL.md
    - Claude Code: ~/.claude/skills/pingcode/SKILL.md
+   - Claude Code 上下文初始化: ~/.claude/skills/pingcode-ctx/SKILL.md
 5. 安装完成后，引导我配置环境变量 PINGCODE_CLIENT_ID 和 PINGCODE_CLIENT_SECRET；不要把 secret 写入仓库文件，也不要在对话里回显完整 secret。
 6. 如果我还需要默认查询“我的任务”，请继续引导我配置 PINGCODE_USER_NAME 或 PINGCODE_USER_ID。
 ```
@@ -110,6 +113,7 @@ npx pingcode-skill@latest --force
 
 ```text
 使用 $pingcode 查看我当前没完成的任务
+使用 $pingcode-ctx 初始化 PingCode 当前项目、迭代和用户
 ```
 
 ## 凭证配置
@@ -145,13 +149,38 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 用户列表或项目成员列表
 - 工作项状态字典
 
-推荐用交互命令初始化当前上下文：
+推荐初始化当前上下文后再执行日常工作项查询或创建：
+
+### Agent 前台问答方式
+
+在 Codex、Claude Code 等 Agent 产品里，推荐显式调用 `$pingcode-ctx`：
+
+```text
+使用 $pingcode-ctx 初始化 PingCode 当前项目、迭代和用户
+```
+
+该 skill 会让 Agent 在前台聊天里按顺序展示项目、迭代、用户的编号选项。用户回复编号、ID 或名称后，Agent 会执行非交互式命令写入 `.pingcode-skill/cache.json`。这个流程不依赖某个产品的专用 UI 控件，因此可兼容 Codex、Claude Code 和其他支持 skills 的 Agent。
+
+底层命令如下：
+
+```bash
+python3 scripts/pingcode.py --context-options project
+python3 scripts/pingcode.py --set-current-project PROJECT_ID_OR_NAME
+python3 scripts/pingcode.py --context-options sprint
+python3 scripts/pingcode.py --set-current-sprint SPRINT_ID_OR_NAME
+python3 scripts/pingcode.py --context-options user
+python3 scripts/pingcode.py --set-current-user USER_ID_OR_NAME
+```
+
+### 终端交互方式
+
+如果你是在普通 shell 里手动执行，也可以运行：
 
 ```bash
 python3 scripts/pingcode_ctx.py
 ```
 
-该命令会引导选择当前项目、当前迭代和当前用户，并写入同一个工作区缓存。通过 npm 安装后也可以直接运行：
+该命令会在终端里引导选择当前项目、当前迭代和当前用户，并写入同一个工作区缓存。通过 npm 安装后也可以直接运行：
 
 ```bash
 pingcode-ctx

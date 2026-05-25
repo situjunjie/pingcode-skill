@@ -48,6 +48,8 @@ The CLI keeps a local workspace cache at `.pingcode-skill/cache.json` by default
 
 Before using this skill for routine PingCode work item operations, check that the workspace cache has `preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`. If any of them is missing, run the interactive setup command first and then retry the original PingCode operation:
 
+For Codex, Claude Code, or another agent frontend, prefer the `$pingcode-ctx` skill when available. It presents project, sprint, and user choices in chat and writes the same workspace cache through non-interactive CLI commands.
+
 For interactive setup, run:
 
 ```bash

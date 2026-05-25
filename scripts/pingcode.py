@@ -157,21 +157,42 @@ def page_values(payload: Any) -> list[dict[str, Any]]:
     return [item for item in values if isinstance(item, dict)]
 
 
+def normalized_entity(item: dict[str, Any]) -> dict[str, Any]:
+    nested_user = item.get("user")
+    if not isinstance(nested_user, dict):
+        return item
+    merged = dict(nested_user)
+    for key, value in item.items():
+        if key not in {"user", "project", "role"} and key not in merged:
+            merged[key] = value
+    return merged
+
+
 def item_names(item: dict[str, Any]) -> list[str]:
+    entity = normalized_entity(item)
     names: list[str] = []
-    for key in ("id", "name", "display_name", "email", "identifier"):
-        value = item.get(key)
+    for key in ("id", "display_name", "name", "email", "identifier"):
+        value = entity.get(key)
         if isinstance(value, str) and value:
             names.append(value)
     return names
 
 
 def selection_item(item: dict[str, Any]) -> dict[str, Any]:
+    entity = normalized_entity(item)
     result: dict[str, Any] = {}
-    for key in ("id", "name", "display_name", "identifier"):
-        value = item.get(key)
+    for key in ("id", "display_name", "name", "email", "identifier"):
+        value = entity.get(key)
         if isinstance(value, str) and value:
             result[key] = value
+    project = item.get("project")
+    if isinstance(project, dict):
+        project_name = project.get("name")
+        project_id = project.get("id")
+        if isinstance(project_name, str) and project_name:
+            result["project_name"] = project_name
+        if isinstance(project_id, str) and project_id:
+            result["project_id"] = project_id
     return result
 
 
@@ -603,6 +624,22 @@ def cache_users(client: PingCodeClient, project_id: str | None = None) -> dict[s
         ) from exc
 
 
+def context_options(client: PingCodeClient, kind: str, project_id: str | None = None) -> dict[str, Any]:
+    if kind == "project":
+        payload = cache_projects(client)
+    elif kind == "sprint":
+        selected_project_id = project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
+        if not isinstance(selected_project_id, str) or not selected_project_id:
+            raise PingCodeError("Provide --project-id or set a cached current project before listing sprint options")
+        payload = cache_sprints(client, selected_project_id)
+    elif kind == "user":
+        payload = cache_users(client, project_id)
+    else:
+        raise PingCodeError(f"Unsupported context option kind: {kind}")
+    options, total = selection_options(payload)
+    return {"kind": kind, "total": total, "options": options}
+
+
 def set_current_user(client: PingCodeClient, user_id: str) -> dict[str, Any]:
     users_payload = client.workspace_cache.get("users")
     users = page_values(users_payload)
@@ -613,10 +650,13 @@ def set_current_user(client: PingCodeClient, user_id: str) -> dict[str, Any]:
         except PingCodeError:
             found = next((item for item in users if item.get("id") == user_id), None)
     preferences = client.workspace_cache.setdefault("preferences", {})
-    preferences["current_user_id"] = found.get("id") if found and isinstance(found.get("id"), str) else user_id
+    entity = normalized_entity(found) if found else None
+    preferences["current_user_id"] = (
+        entity.get("id") if entity and isinstance(entity.get("id"), str) else user_id
+    )
     if found:
-        for key in ("name", "display_name", "email"):
-            value = found.get(key)
+        for key in ("display_name", "name", "email"):
+            value = entity.get(key) if entity else None
             if isinstance(value, str) and value:
                 preferences["current_user_name"] = value
                 break
@@ -777,6 +817,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-projects", action="store_true", help="Fetch and cache projects")
     parser.add_argument("--cache-sprints", action="store_true", help="Fetch and cache project sprints")
     parser.add_argument("--cache-states", action="store_true", help="Fetch and cache work item states")
+    parser.add_argument(
+        "--context-options",
+        choices=("project", "sprint", "user"),
+        help="Print compact project/sprint/user options for agent frontend workspace setup",
+    )
     parser.add_argument("--set-current-user", help="Save current PingCode user id in the workspace cache")
     parser.add_argument("--set-current-project", help="Save current project id in the workspace cache")
     parser.add_argument("--set-current-sprint", help="Save current sprint/iteration id in the workspace cache")
@@ -820,6 +865,8 @@ def client_from_args(args: argparse.Namespace) -> PingCodeClient:
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     client = client_from_args(args)
+    if args.context_options:
+        return context_options(client, args.context_options, args.project_id)
     if args.cache_users:
         return cache_users(client, args.project_id)
     if args.cache_projects:

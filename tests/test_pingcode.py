@@ -628,6 +628,77 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["preferences"]["current_user_id"], "user-1")
         self.assertEqual(payload["preferences"]["current_user_name"], "Situ")
 
+    def test_set_current_user_accepts_cached_project_member_display_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                users=[
+                    {
+                        "id": "member-1",
+                        "type": "user",
+                        "user": {
+                            "id": "user-1",
+                            "display_name": "司徒",
+                            "name": "situjunjie",
+                            "email": "situ@example.test",
+                        },
+                    }
+                ],
+            )
+            args = self.parse_args_with_workspace_cache(["--set-current-user", "司徒"], cache_path)
+
+            result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["preferences"]["current_user_id"], "user-1")
+        self.assertEqual(result["preferences"]["current_user_name"], "司徒")
+        self.assertEqual(payload["preferences"]["current_user_id"], "user-1")
+
+    def test_context_options_user_outputs_nested_project_member_names(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--context-options",
+                    "user",
+                    "--project-id",
+                    "project-1",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse(
+                    {
+                        "values": [
+                            {
+                                "id": "member-1",
+                                "project": {"id": "project-1", "name": "Core Project"},
+                                "user": {
+                                    "id": "user-1",
+                                    "display_name": "司徒",
+                                    "name": "situjunjie",
+                                    "email": "situ@example.test",
+                                },
+                            }
+                        ]
+                    }
+                ),
+            ):
+                result = pingcode.run(args)
+
+        self.assertEqual(result["kind"], "user")
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["options"][0]["id"], "user-1")
+        self.assertEqual(result["options"][0]["display_name"], "司徒")
+        self.assertEqual(result["options"][0]["name"], "situjunjie")
+        self.assertEqual(result["options"][0]["email"], "situ@example.test")
+
     def test_pingcode_ctx_selects_and_caches_workspace_context(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
@@ -642,7 +713,19 @@ class PingCodeCliTests(unittest.TestCase):
             responses = [
                 {"values": [{"id": "project-1", "name": "Core Project"}]},
                 {"values": [{"id": "sprint-1", "name": "Sprint 1"}]},
-                {"values": [{"id": "user-1", "name": "Situ", "email": "situ@example.test"}]},
+                {
+                    "values": [
+                        {
+                            "id": "member-1",
+                            "user": {
+                                "id": "user-1",
+                                "display_name": "司徒",
+                                "name": "situjunjie",
+                                "email": "situ@example.test",
+                            },
+                        }
+                    ]
+                },
             ]
 
             output = io.StringIO()
@@ -658,7 +741,9 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["preferences"]["current_user_id"], "user-1")
         self.assertEqual(payload["preferences"]["current_project_name"], "Core Project")
         self.assertEqual(payload["preferences"]["current_sprint_name"], "Sprint 1")
-        self.assertEqual(payload["preferences"]["current_user_name"], "Situ")
+        self.assertEqual(payload["preferences"]["current_user_name"], "司徒")
+        self.assertIn("司徒", output.getvalue())
+        self.assertIn("situjunjie", output.getvalue())
 
     def test_main_prints_help(self):
         parser = pingcode.build_parser()

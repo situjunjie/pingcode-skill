@@ -26,7 +26,51 @@ Use the workspace cache before routine queries so repeated API calls stay low. S
 
 Before routine work item queries or creates, ensure `.pingcode-skill/cache.json` has `preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`. If any of them is missing, run the interactive setup first, then retry the original operation.
 
-For interactive setup, run:
+### Agent Frontend Setup
+
+In Codex, Claude Code, or another agent frontend, prefer `$pingcode-ctx` when available. The agent should not run a blocking Python `input()` flow unless the user explicitly asks for terminal interaction.
+
+Use one frontend question at a time:
+
+1. List project options:
+
+   ```bash
+   python3 scripts/pingcode.py --context-options project
+   ```
+
+   Ask the user to choose one numbered option, ID, or exact name, then run:
+
+   ```bash
+   python3 scripts/pingcode.py --set-current-project PROJECT_ID_OR_NAME
+   ```
+
+2. List sprint/iteration options for the cached project:
+
+   ```bash
+   python3 scripts/pingcode.py --context-options sprint
+   ```
+
+   Ask the user to choose one, then run:
+
+   ```bash
+   python3 scripts/pingcode.py --set-current-sprint SPRINT_ID_OR_NAME
+   ```
+
+3. List user options for the cached project:
+
+   ```bash
+   python3 scripts/pingcode.py --context-options user
+   ```
+
+   Ask the user to choose one, then run:
+
+   ```bash
+   python3 scripts/pingcode.py --set-current-user USER_ID_OR_NAME
+   ```
+
+### Terminal Interactive Setup
+
+For terminal interactive setup, run:
 
 ```bash
 python3 scripts/pingcode_ctx.py

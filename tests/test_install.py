@@ -22,6 +22,7 @@ class InstallerTests(unittest.TestCase):
             skill_doc = (target / "SKILL.md").read_text(encoding="utf-8")
             readme = (target / "README.md").read_text(encoding="utf-8")
             workflows = (target / "references" / "workflows.md").read_text(encoding="utf-8")
+            alias_doc = (target.parent / "pingcode-ctx" / "SKILL.md").read_text(encoding="utf-8")
             expected = f"python3 '{target / 'scripts' / 'pingcode.py'}'"
             expected_ctx = f"python3 '{target / 'scripts' / 'pingcode_ctx.py'}'"
             ctx_bin_exists = (target / "bin" / "pingcode-ctx.js").exists()
@@ -32,6 +33,8 @@ class InstallerTests(unittest.TestCase):
         self.assertIn(expected, workflows)
         self.assertIn(expected_ctx, skill_doc)
         self.assertIn(expected_ctx, readme)
+        self.assertIn(expected, alias_doc)
+        self.assertIn(expected_ctx, alias_doc)
         self.assertTrue(ctx_bin_exists)
         self.assertNotIn("python3 scripts/pingcode.py", skill_doc)
         self.assertNotIn("python3 scripts/pingcode.py", readme)

@@ -1,6 +1,6 @@
 {
   "name": "pingcode-skill",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Install the PingCode Codex skill with npx.",
   "license": "MIT",
   "repository": {
@@ -13,6 +13,7 @@
   },
   "files": [
     "SKILL.md",
+    "skills/pingcode-ctx/SKILL.md",
     "agents/openai.yaml",
     "references/api.md",
     "references/workflows.md",
