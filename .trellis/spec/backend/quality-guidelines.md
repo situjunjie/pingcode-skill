@@ -98,6 +98,7 @@ Questions to answer:
 - `--cache-states --work-item-type-id TYPE_ID` refreshes one type's state dictionary. `--cache-states` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes state dictionaries for every returned type id.
 - `--cache-work-item-properties --work-item-type-id TYPE_ID` refreshes one type's property dictionary. `--cache-work-item-properties` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes property dictionaries for every returned type id.
 - Cache idea states and idea priorities by `product_id`; helper commands must fail clearly when `--product-id` is absent.
+- Workspace cache stores compact dictionary data for agent lookup, not raw API responses. Drop fields that do not help resolve IDs or choose options, including `url`, `color`, avatars, creator/updater objects, visibility flags, and timestamps. Keep lookup fields such as `id`, `name`, `display_name`, `email`, `identifier`, `type`, `group`, nested `user`, and property `options`.
 - Default base URL: `https://open.pingcode.com`.
 - Output contract: print JSON to stdout for successful commands; print human-readable errors to stderr and exit non-zero for failures.
 - Credentials, access tokens, token cache contents, and workspace cache contents must never be committed or included in docs examples.
@@ -147,6 +148,7 @@ Questions to answer:
 - Unit tests must cover dictionary cache reads without network and cache writes after successful list/dictionary responses.
 - Unit tests must cover project-scoped work item type caching and `--cache-states` refreshing states for every cached type when no single `--work-item-type-id` is supplied.
 - Unit tests must cover work item priority caching, work item property caching and batched property refresh, and product-scoped idea state/priority caching.
+- Unit tests must cover workspace cache compaction so unneeded API fields are removed while lookup fields remain.
 - Unit tests must cover auth/token behavior without live network calls.
 - Tests must not depend on a real PingCode tenant.
 

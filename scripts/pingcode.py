@@ -149,12 +149,42 @@ def merge_workspace_cache(existing: dict[str, Any], incoming: dict[str, Any]) ->
     return merged
 
 
+def compact_workspace_cache_value(value: Any) -> Any:
+    drop_keys = {
+        "avatar",
+        "color",
+        "created_at",
+        "created_by",
+        "description",
+        "is_archived",
+        "is_deleted",
+        "members",
+        "scope_id",
+        "scope_type",
+        "updated_at",
+        "updated_by",
+        "url",
+        "visibility",
+    }
+    if isinstance(value, list):
+        return [compact_workspace_cache_value(item) for item in value]
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in drop_keys:
+                continue
+            result[key] = compact_workspace_cache_value(item)
+        return result
+    return value
+
+
 def save_workspace_cache(cache_path: Path | None, cache: dict[str, Any]) -> None:
     if cache_path is None:
         raise PingCodeError("Workspace cache is disabled")
     latest = load_workspace_cache(cache_path)
     if latest:
         cache = merge_workspace_cache(latest, cache)
+    cache = compact_workspace_cache_value(cache)
     cache["updated_at"] = int(time.time())
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = cache_path.with_name(f".{cache_path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")

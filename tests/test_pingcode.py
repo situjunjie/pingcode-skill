@@ -610,6 +610,59 @@ class PingCodeCliTests(unittest.TestCase):
 
         self.assertEqual(temp_files, [])
 
+    def test_workspace_cache_save_compacts_unneeded_api_fields(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            payload = pingcode.empty_workspace_cache()
+            payload["work_item_states"] = {
+                "project-1::story": {
+                    "values": [
+                        {
+                            "id": "state-1",
+                            "name": "打开",
+                            "type": "pending",
+                            "color": "#56ABFB",
+                            "url": "https://example.test/state-1",
+                        }
+                    ]
+                }
+            }
+            payload["users"] = {
+                "values": [
+                    {
+                        "id": "member-1",
+                        "url": "https://example.test/member-1",
+                        "user": {
+                            "id": "user-1",
+                            "display_name": "Alice",
+                            "avatar": "https://example.test/avatar.png",
+                        },
+                    }
+                ]
+            }
+            payload["projects"] = {
+                "values": [
+                    {
+                        "id": "project-1",
+                        "name": "Project",
+                        "created_by": {"id": "user-1"},
+                        "url": "https://example.test/project-1",
+                    }
+                ]
+            }
+
+            pingcode.save_workspace_cache(cache_path, payload)
+
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(cached["work_item_states"]["project-1::story"]["values"][0]["id"], "state-1")
+        self.assertEqual(cached["work_item_states"]["project-1::story"]["values"][0]["type"], "pending")
+        self.assertNotIn("color", cached["work_item_states"]["project-1::story"]["values"][0])
+        self.assertNotIn("url", cached["work_item_states"]["project-1::story"]["values"][0])
+        self.assertEqual(cached["users"]["values"][0]["user"]["display_name"], "Alice")
+        self.assertNotIn("avatar", cached["users"]["values"][0]["user"])
+        self.assertNotIn("created_by", cached["projects"]["values"][0])
+
     def test_get_states_writes_workspace_cache_after_network_success(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
