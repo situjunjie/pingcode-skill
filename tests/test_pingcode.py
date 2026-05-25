@@ -583,6 +583,33 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(urlopen.call_count, 1)
         cached_urlopen.assert_not_called()
 
+    def test_workspace_cache_save_merges_latest_disk_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            first = pingcode.empty_workspace_cache()
+            first["work_item_priorities"] = {"project-1": {"values": [{"id": "high"}]}}
+            second = pingcode.empty_workspace_cache()
+            second["idea_priorities"] = {"product-1": {"values": [{"id": "p0"}]}}
+
+            pingcode.save_workspace_cache(cache_path, first)
+            pingcode.save_workspace_cache(cache_path, second)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["work_item_priorities"]["project-1"]["values"][0]["id"], "high")
+        self.assertEqual(payload["idea_priorities"]["product-1"]["values"][0]["id"], "p0")
+
+    def test_workspace_cache_save_uses_atomic_temp_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            payload = pingcode.empty_workspace_cache()
+
+            pingcode.save_workspace_cache(cache_path, payload)
+
+            temp_files = list(Path(tmpdir).glob(".workspace.json.*.tmp"))
+
+        self.assertEqual(temp_files, [])
+
     def test_get_states_writes_workspace_cache_after_network_success(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"

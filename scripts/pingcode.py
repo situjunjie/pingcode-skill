@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -135,12 +136,30 @@ def load_workspace_cache(cache_path: Path | None) -> dict[str, Any]:
     return cache
 
 
+def merge_workspace_cache(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(existing)
+    for key, value in incoming.items():
+        existing_value = merged.get(key)
+        if isinstance(existing_value, dict) and isinstance(value, dict):
+            merged[key] = merge_workspace_cache(existing_value, value)
+        elif value is None and existing_value is not None:
+            continue
+        else:
+            merged[key] = value
+    return merged
+
+
 def save_workspace_cache(cache_path: Path | None, cache: dict[str, Any]) -> None:
     if cache_path is None:
         raise PingCodeError("Workspace cache is disabled")
+    latest = load_workspace_cache(cache_path)
+    if latest:
+        cache = merge_workspace_cache(latest, cache)
     cache["updated_at"] = int(time.time())
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    tmp_path = cache_path.with_name(f".{cache_path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    tmp_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    tmp_path.replace(cache_path)
     try:
         cache_path.chmod(0o600)
     except OSError:
