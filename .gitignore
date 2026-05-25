@@ -44,7 +44,7 @@ token.json
 
 # Trellis local workflow state
 .trellis/
-
+.pingcode-skill/
 # OS / editor
 .DS_Store
 Thumbs.db

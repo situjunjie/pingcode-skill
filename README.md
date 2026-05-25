@@ -6,46 +6,24 @@
 
 已发布到 npm：`pingcode-skill@latest`。
 
-安装到 Codex：
+一条命令同时安装到 Codex / Claude Code / OpenClaw / Hermes：
 
 ```bash
 npx pingcode-skill@latest
 ```
 
-默认会安装到 Codex 个人 skill 目录：
+默认会把 `pingcode` 主 skill 和 `pingcode-ctx` 上下文 skill 一并写入下面四个个人 skill 目录：
 
 ```text
-~/.codex/skills/pingcode
-~/.codex/skills/pingcode-ctx
+~/.codex/skills/pingcode                          (+ pingcode-ctx)
+~/.claude/skills/pingcode                         (+ pingcode-ctx)
+~/.openclaw/skills/pingcode                       (+ pingcode-ctx)
+~/.hermes/skills/project-management/pingcode      (+ pingcode-ctx)
 ```
 
-安装到 Claude Code：
+任何一个目录写入失败（权限、磁盘等问题）不会阻断其他目录，安装结束时会打印每个目录的成功/失败摘要。
 
-```bash
-npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode"
-```
-
-Claude Code 的个人 skills 目录是：
-
-```text
-~/.claude/skills/<skill-name>/SKILL.md
-```
-
-也可以安装成当前项目专用 skill：
-
-```bash
-npx pingcode-skill@latest --target ".claude/skills/pingcode"
-```
-
-常用安装参数：
-
-```bash
-npx pingcode-skill@latest --force
-npx pingcode-skill@latest --target "$HOME/.codex/skills/pingcode"
-npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode" --force
-```
-
-如果用户设置了 `CODEX_HOME`，默认安装目录会变成 `$CODEX_HOME/skills/pingcode`。
+如果设置了 `CODEX_HOME`，Codex 目录会变成 `$CODEX_HOME/skills/pingcode`；其他三个目录的位置不受该变量影响。
 
 安装完成后，配置 PingCode 凭证：
 
@@ -61,11 +39,33 @@ export PINGCODE_USER_NAME="你的 PingCode 用户名或显示名"
 export PINGCODE_USER_ID="你的 PingCode 用户 ID"
 ```
 
-更新到最新版本时可运行：
+### 更新
+
+升级到最新版本（覆盖所有四个默认目录）：
 
 ```bash
 npx pingcode-skill@latest --force
 ```
+
+### 高级用法
+
+只安装到某一个 Agent：
+
+```bash
+npx pingcode-skill@latest --codex-only --force
+npx pingcode-skill@latest --claude-only --force
+npx pingcode-skill@latest --openclaw-only --force
+npx pingcode-skill@latest --hermes-only --force
+```
+
+安装到自定义目录（例如项目本地的 `.claude/skills/pingcode`）：
+
+```bash
+npx pingcode-skill@latest --target ".claude/skills/pingcode" --force
+npx pingcode-skill@latest --target "$HOME/.codex/skills/pingcode" --force
+```
+
+`--target` 与 `--codex-only` / `--claude-only` / `--openclaw-only` / `--hermes-only` 互斥；指定 `--target` 后只会安装到给定目录，不再走多 Agent 默认流程。
 
 ## 复制给 AI Agent 的安装提示词
 
@@ -75,16 +75,15 @@ npx pingcode-skill@latest --force
 请帮我安装 PingCode skill，让当前 AI Agent 可以通过 PingCode 官方 REST API 查询和操作项目/产品数据。
 
 安装要求：
-1. 如果我是 Codex 用户，请运行：npx pingcode-skill@latest --force
-2. 如果我是 Claude Code 用户，请安装到个人 skills 目录：npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode" --force
-3. 如果你无法判断当前 Agent 类型，请先询问我是 Codex 还是 Claude Code，再选择对应命令。
-4. 安装后请检查 skill 入口文件是否存在：
-   - Codex: ~/.codex/skills/pingcode/SKILL.md
-   - Codex 上下文初始化: ~/.codex/skills/pingcode-ctx/SKILL.md
-   - Claude Code: ~/.claude/skills/pingcode/SKILL.md
-   - Claude Code 上下文初始化: ~/.claude/skills/pingcode-ctx/SKILL.md
-5. 安装完成后，引导我配置环境变量 PINGCODE_CLIENT_ID 和 PINGCODE_CLIENT_SECRET；不要把 secret 写入仓库文件，也不要在对话里回显完整 secret。
-6. 如果我还需要默认查询“我的任务”，请继续引导我配置 PINGCODE_USER_NAME 或 PINGCODE_USER_ID。
+1. 直接运行：npx pingcode-skill@latest --force
+   该命令会一次性把 skill 安装到 Codex、Claude Code、OpenClaw 和 Hermes 的个人 skills 目录。
+2. 安装结束后请检查下列 SKILL.md 入口文件是否存在（按你当前使用的 Agent 选择对应路径即可）：
+   - ~/.codex/skills/pingcode/SKILL.md 与 ~/.codex/skills/pingcode-ctx/SKILL.md
+   - ~/.claude/skills/pingcode/SKILL.md 与 ~/.claude/skills/pingcode-ctx/SKILL.md
+   - ~/.openclaw/skills/pingcode/SKILL.md 与 ~/.openclaw/skills/pingcode-ctx/SKILL.md
+   - ~/.hermes/skills/project-management/pingcode/SKILL.md 与 ~/.hermes/skills/project-management/pingcode-ctx/SKILL.md
+3. 安装完成后，引导我配置环境变量 PINGCODE_CLIENT_ID 和 PINGCODE_CLIENT_SECRET；不要把 secret 写入仓库文件，也不要在对话里回显完整 secret。
+4. 如果我还需要默认查询“我的任务”，请继续引导我配置 PINGCODE_USER_NAME 或 PINGCODE_USER_ID。
 ```
 
 ## 能力范围
@@ -139,6 +138,14 @@ export PINGCODE_USER_ID="你的 PingCode 用户 ID"
 
 如果脚本调用时缺少 `PINGCODE_CLIENT_ID` / `PINGCODE_CLIENT_SECRET`，会直接输出 `export` 配置示例并退出。企业令牌不能代表个人身份；操作创建工作项、查询工作项时，如果用户没有明确说“所有人”或指定其他负责人，agent 应默认使用当前用户。当前用户来自 `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`、`--user-id` / `--user-name` 或工作区缓存；如果没有配置，agent 应先缓存用户列表，再让用户选择自己的 PingCode 用户。
 
+## 初次使用
+
+首次在一个工作区使用前，先用 `pingcode-ctx` 初始化项目上下文，选择当前项目、当前迭代和当前用户：
+
+```text
+使用 $pingcode-ctx 初始化 PingCode 当前项目、迭代和用户
+```
+
 ## 工作区缓存
 
 CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json`，该目录已被 `.gitignore` 忽略。缓存内容包括：
@@ -148,6 +155,8 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 当前迭代 ID / 名称
 - 用户列表或项目成员列表
 - 工作项状态字典
+
+首次写入默认缓存时，如果当前项目已有 `.gitignore`，CLI 会自动确保 `.pingcode-skill/` 已加入忽略列表。
 
 推荐初始化当前上下文后再执行日常工作项查询或创建：
 
@@ -210,39 +219,6 @@ python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param a
 
 查询工作项时，CLI 会自动补当前用户、当前项目、当前迭代过滤条件。用户明确要求“所有人”“全部项目”“全部迭代”时分别加 `--all-users`、`--all-projects`、`--all-sprints`。
 
-
-
-## CLI 入口
-
-```bash
-python3 scripts/pingcode.py --help
-```
-
-通过 `npx pingcode-skill` 安装后，安装器会把 skill 文档里的示例命令改写为已安装脚本的绝对路径，例如：
-
-```bash
-python3 ~/.codex/skills/pingcode/scripts/pingcode.py --help
-```
-
-在 Codex 里建议优先使用这个安装后的绝对路径命令。Codex 的沙箱联网审批按命令前缀复用授权，稳定的绝对路径比仓库内相对路径命令更容易命中已批准规则，减少重复确认。
-
-常用示例：
-
-```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20
-python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
-python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=story
-python3 scripts/pingcode.py --cache-states --project-id PROJECT_ID --work-item-type-id story
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"新用户故事","assignee_id":"@me"}' --dry-run
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"子任务","assignee_id":"@me"}' --dry-run
-python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}' --dry-run
-python3 scripts/pingcode.py --method GET --path /v1/ship/products --param page_size=20
-python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"新产品需求"}' --dry-run
-```
-
-写操作建议先加 `--dry-run`，确认请求体无误后再执行真实请求。
-
 ## 自然语言到命令的映射原则
 
 - 当前用户默认规则：操作创建工作项、查询工作项时，如果用户没有明确说“所有人”或指定其他负责人，默认按当前用户处理。查询工作项时 CLI 会自动加当前用户过滤；创建时在 JSON 里加 `"assignee_id":"@me"`。
@@ -262,9 +238,14 @@ python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"produc
 - 操作流程：[references/workflows.md](references/workflows.md)
 - 官方文档：https://open.pingcode.com/
 
-## 测试
 
-```bash
-python3 -m unittest discover -s tests -v
-python3 /Users/situjunjie/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
-```
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=situjunjie%2Fpingcode-skill&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=situjunjie/pingcode-skill&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=situjunjie/pingcode-skill&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=situjunjie/pingcode-skill&type=date&legend=top-left" />
+ </picture>
+</a>
