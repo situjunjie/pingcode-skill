@@ -205,10 +205,6 @@ function printCredentialGuidance() {
   console.log("Configure PingCode credentials before use:");
   console.log('  export PINGCODE_CLIENT_ID="..."');
   console.log('  export PINGCODE_CLIENT_SECRET="..."');
-  console.log("");
-  console.log('For "my" requests, also configure:');
-  console.log('  export PINGCODE_USER_ID="..."');
-  console.log('  export PINGCODE_USER_NAME="..."');
 }
 
 function existingAgentKeys(roots) {
