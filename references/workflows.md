@@ -11,18 +11,43 @@
 | "把某个工作项改成已完成/进行中" | Resolve states, then patch the work item with `state_id` |
 | "创建一个故事/任务/缺陷" | Resolve project/type, then create via `POST /v1/project/work_items` with `assignee_id=@me` unless another assignee or "所有人" is explicit |
 
-This skill uses `client_credentials`, so the token is an enterprise token and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人" / all users or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` or the matching CLI flags if present. If neither is set, guide the user to configure a current user or ask for their PingCode user name/user id before filtering or assigning.
+This skill uses `client_credentials`, so the token is an enterprise token and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人" / all users or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, the matching CLI flags, or the workspace cache if present. If none is set, cache users first and ask the user to choose their PingCode user before filtering or assigning.
 
 The CLI accepts identity placeholders:
 
 * `@me` expands to `PINGCODE_USER_ID`.
 * `@me_name` expands to `PINGCODE_USER_NAME`.
+* `@user:<name-or-email>` expands from cached users.
 * If the required variable is missing, the CLI exits with setup guidance instead of guessing.
+
+## Workspace Cache Setup
+
+Use the workspace cache before routine queries so repeated API calls stay low:
+
+```bash
+python3 scripts/pingcode.py --cache-projects
+python3 scripts/pingcode.py --set-current-project PROJECT_ID
+python3 scripts/pingcode.py --cache-sprints
+python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
+python3 scripts/pingcode.py --cache-users
+python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
+python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
+```
+
+`--cache-users` uses the cached current project or `--project-id` to cache project members. It falls back to `/v1/directory/users` only when no project is available. Cached user lists let agents answer "xxx 的工作项" with `--param assignee_ids=@user:xxx` without another lookup.
+
+For `GET /v1/project/work_items`, the CLI automatically applies cached defaults:
+
+* current user as `assignee_ids`
+* current project as `project_ids`
+* current sprint/iteration as `sprint_ids`
+
+If the user explicitly asks for all users, all projects, or all iterations, pass `--all-users`, `--all-projects`, or `--all-sprints`.
 
 ## View My Current Unfinished Tasks
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param page_size=100
 ```
 
 Use this same current-user filter for generic work item queries unless the user explicitly asks for "所有人" / all users.
@@ -30,7 +55,7 @@ Use this same current-user filter for generic work item queries unless the user 
 Optional filters:
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param type_ids=story,task --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=story,task --param page_size=100
 ```
 
 The model should treat state types `pending` and `in_progress` as unfinished unless the user defines a different rule.
@@ -38,7 +63,7 @@ The model should treat state types `pending` and `in_progress` as unfinished unl
 ## View My Unresolved Defects
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param type_ids=bug --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=bug --param page_size=100
 ```
 
 This returns assigned bugs whose state type is `pending` or `in_progress`.
@@ -69,9 +94,10 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 2. Read the work item's `project.id` and `type`.
-3. Fetch available states:
+3. Fetch available states from cache, or refresh cache if needed:
 
    ```bash
+   python3 scripts/pingcode.py --cache-states --project-id PROJECT_ID --work-item-type-id TYPE_ID
    python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
    ```
 

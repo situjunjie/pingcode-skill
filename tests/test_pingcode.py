@@ -23,6 +23,24 @@ class FakeResponse:
 
 
 class PingCodeCliTests(unittest.TestCase):
+    def parse_args_with_workspace_cache(self, items, cache_path):
+        parser = pingcode.build_parser()
+        return parser.parse_args(["--workspace-cache", str(cache_path), *items])
+
+    def write_workspace_cache(self, cache_path, preferences=None, users=None, projects=None, sprints=None, states=None):
+        payload = pingcode.empty_workspace_cache()
+        payload["preferences"] = preferences or {}
+        if users is not None:
+            payload["users"] = {"values": users}
+        if projects is not None:
+            payload["projects"] = {"values": projects}
+        if sprints is not None:
+            payload["sprints"] = sprints
+        if states is not None:
+            payload["work_item_states"] = states
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(payload), encoding="utf-8")
+
     def test_build_url_merges_query_parameters(self):
         url = pingcode.build_url(
             "https://open.pingcode.com",
@@ -80,23 +98,31 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["params"]["work_item_type_id"], "story")
 
     def test_me_placeholder_expands_from_environment(self):
-        parser = pingcode.build_parser()
-        args = parser.parse_args(
-            [
-                "--method",
-                "GET",
-                "--path",
-                "/v1/project/work_items",
-                "--param",
-                "assignee_ids=@me",
-                "--dry-run",
-            ]
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={"current_project_id": "project-1", "current_sprint_id": "sprint-1"},
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--param",
+                    "assignee_ids=@me",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
 
-        with mock.patch.dict("os.environ", {"PINGCODE_USER_ID": "user-1"}):
-            result = pingcode.run(args)
+            with mock.patch.dict("os.environ", {"PINGCODE_USER_ID": "user-1"}):
+                result = pingcode.run(args)
 
         self.assertEqual(result["params"]["assignee_ids"], "user-1")
+        self.assertEqual(result["params"]["project_ids"], "project-1")
+        self.assertEqual(result["params"]["sprint_ids"], "sprint-1")
 
     def test_me_placeholder_expands_from_user_id_flag(self):
         parser = pingcode.build_parser()
@@ -120,25 +146,36 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["json"]["assignee_id"], "user-flag-1")
 
     def test_me_name_placeholder_expands_from_user_name_flag(self):
-        parser = pingcode.build_parser()
-        args = parser.parse_args(
-            [
-                "--method",
-                "GET",
-                "--path",
-                "/v1/project/work_items",
-                "--user-name",
-                "Situ",
-                "--param",
-                "keywords=@me_name",
-                "--dry-run",
-            ]
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-1",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--user-name",
+                    "Situ",
+                    "--param",
+                    "keywords=@me_name",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
 
-        with mock.patch.dict("os.environ", {}, clear=True):
-            result = pingcode.run(args)
+            with mock.patch.dict("os.environ", {}, clear=True):
+                result = pingcode.run(args)
 
         self.assertEqual(result["params"]["keywords"], "Situ")
+        self.assertEqual(result["params"]["assignee_ids"], "user-1")
 
     def test_missing_me_placeholder_prints_identity_guidance(self):
         parser = pingcode.build_parser()
@@ -198,6 +235,217 @@ class PingCodeCliTests(unittest.TestCase):
             self.assertIn("grant_type=client_credentials", request.full_url)
             self.assertIn("client_id=client", request.full_url)
             self.assertIn("client_secret=secret", request.full_url)
+
+    def test_workspace_current_user_falls_back_to_cached_preference(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-cached",
+                    "current_sprint_id": "sprint-cached",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            with mock.patch.dict("os.environ", {}, clear=True):
+                result = pingcode.run(args)
+
+        self.assertEqual(result["params"]["assignee_ids"], "user-cached")
+        self.assertEqual(result["params"]["project_ids"], "project-cached")
+        self.assertEqual(result["params"]["sprint_ids"], "sprint-cached")
+
+    def test_all_project_and_sprint_flags_skip_default_filters(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(cache_path, preferences={"current_user_id": "user-cached"})
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--all-projects",
+                    "--all-sprints",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            result = pingcode.run(args)
+
+        self.assertEqual(result["params"], {"assignee_ids": "user-cached"})
+
+    def test_user_name_placeholder_expands_from_cached_users(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+                users=[{"id": "user-2", "name": "Alice Chen", "email": "alice@example.test"}],
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--param",
+                    "assignee_ids=@user:Alice",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            result = pingcode.run(args)
+
+        self.assertEqual(result["params"]["assignee_ids"], "user-2")
+
+    def test_cache_states_reuses_workspace_cache_without_network(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            cached_states = {"values": [{"id": "state-1", "name": "进行中"}]}
+            self.write_workspace_cache(
+                cache_path,
+                states={"project-1::task": cached_states},
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_item/states",
+                    "--param",
+                    "project_id=project-1",
+                    "--param",
+                    "work_item_type_id=task",
+                ],
+                cache_path,
+            )
+
+            with mock.patch("urllib.request.urlopen") as urlopen:
+                result = pingcode.run(args)
+
+        self.assertEqual(result, cached_states)
+        urlopen.assert_not_called()
+
+    def test_get_states_writes_workspace_cache_after_network_success(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_item/states",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "project_id=project-1",
+                    "--param",
+                    "work_item_type_id=task",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "state-1", "name": "已完成"}]}),
+            ):
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["values"][0]["id"], "state-1")
+        self.assertEqual(payload["work_item_states"]["project-1::task"]["values"][0]["name"], "已完成")
+
+    def test_cache_states_refresh_bypasses_stale_workspace_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={"current_project_id": "project-1"},
+                states={"project-1::task": {"values": [{"id": "old-state", "name": "旧状态"}]}},
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--cache-states",
+                    "--work-item-type-id",
+                    "task",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "new-state", "name": "新状态"}]}),
+            ) as urlopen:
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["values"][0]["id"], "new-state")
+        self.assertEqual(payload["work_item_states"]["project-1::task"]["values"][0]["id"], "new-state")
+        urlopen.assert_called_once()
+
+    def test_cache_users_uses_project_members_when_project_id_is_available(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--cache-users",
+                    "--project-id",
+                    "project-1",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "user-1", "name": "Situ"}]}),
+            ) as urlopen:
+                result = pingcode.run(args)
+
+            request = urlopen.call_args.args[0]
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertIn("/v1/project/projects/project-1/members", request.full_url)
+        self.assertEqual(result["values"][0]["id"], "user-1")
+        self.assertEqual(payload["users"]["project_id"], "project-1")
+
+    def test_set_current_user_accepts_cached_user_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                users=[{"id": "user-1", "name": "Situ", "email": "situ@example.test"}],
+            )
+            args = self.parse_args_with_workspace_cache(["--set-current-user", "Situ"], cache_path)
+
+            result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["preferences"]["current_user_id"], "user-1")
+        self.assertEqual(payload["preferences"]["current_user_name"], "Situ")
 
     def test_main_prints_help(self):
         parser = pingcode.build_parser()

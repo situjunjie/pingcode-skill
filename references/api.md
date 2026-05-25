@@ -105,6 +105,10 @@ Content-Type: application/json
 
 The target `state_id` must satisfy the work item type state scheme and allowed state transition.
 
+## User Lookup
+
+Use `GET /v1/project/projects/{project_id}/members` to cache users available in a project. Some tenants may also expose `GET /v1/directory/users`; the CLI uses project members when `--project-id` or a cached current project is available, then falls back to the global user-list endpoint only when no project is selected.
+
 ## Product Management
 
 | Operation | Method | Path |
