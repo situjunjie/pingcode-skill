@@ -28,10 +28,10 @@ AUTH_ENV_GUIDANCE = (
 )
 USER_ENV_GUIDANCE = (
     "This request needs a human PingCode identity, but client_credentials is an enterprise token.\n"
-    "Ask the user for their PingCode user ID/name, or configure one of:\n"
+    "Ask the user for their PingCode user ID/name, pass --user-id/--user-name, or configure one of:\n"
     "  export PINGCODE_USER_ID=\"...\"\n"
     "  export PINGCODE_USER_NAME=\"...\"\n"
-    "Use @me for user-id fields after PINGCODE_USER_ID is set; use @me_name when a name lookup is needed."
+    "Use @me for current-user-id fields; use @me_name when a name lookup is needed."
 )
 
 
@@ -64,40 +64,47 @@ def parse_key_values(items: list[str] | None) -> dict[str, str]:
     return result
 
 
-def current_user_id() -> str:
-    user_id = os.getenv("PINGCODE_USER_ID")
+def current_user_id(user_id: str | None = None) -> str:
+    user_id = user_id or os.getenv("PINGCODE_USER_ID")
     if not user_id:
         raise PingCodeError(USER_ENV_GUIDANCE)
     return user_id
 
 
-def current_user_name() -> str:
-    user_name = os.getenv("PINGCODE_USER_NAME")
+def current_user_name(user_name: str | None = None) -> str:
+    user_name = user_name or os.getenv("PINGCODE_USER_NAME")
     if not user_name:
         raise PingCodeError(USER_ENV_GUIDANCE)
     return user_name
 
 
-def expand_identity_placeholder(value: Any) -> Any:
+def expand_identity_placeholder(value: Any, user_id: str | None = None, user_name: str | None = None) -> Any:
     if isinstance(value, str):
         if value == "@me":
-            return current_user_id()
+            return current_user_id(user_id)
         if value in {"@me_name", "@me-name"}:
-            return current_user_name()
+            return current_user_name(user_name)
         if "@me" in value:
-            return value.replace("@me", current_user_id())
+            return value.replace("@me", current_user_id(user_id))
         return value
     if isinstance(value, list):
-        return [expand_identity_placeholder(item) for item in value]
+        return [expand_identity_placeholder(item, user_id=user_id, user_name=user_name) for item in value]
     if isinstance(value, dict):
-        return {key: expand_identity_placeholder(item) for key, item in value.items()}
+        return {
+            key: expand_identity_placeholder(item, user_id=user_id, user_name=user_name)
+            for key, item in value.items()
+        }
     return value
 
 
-def expand_identity_placeholders(data: dict[str, Any] | None) -> dict[str, Any] | None:
+def expand_identity_placeholders(
+    data: dict[str, Any] | None,
+    user_id: str | None = None,
+    user_name: str | None = None,
+) -> dict[str, Any] | None:
     if data is None:
         return None
-    return expand_identity_placeholder(data)
+    return expand_identity_placeholder(data, user_id=user_id, user_name=user_name)
 
 
 def load_cached_token(cache_path: Path) -> str | None:
@@ -275,6 +282,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--client-id", default=os.getenv("PINGCODE_CLIENT_ID"))
     parser.add_argument("--client-secret", default=os.getenv("PINGCODE_CLIENT_SECRET"))
     parser.add_argument("--token", default=os.getenv("PINGCODE_ACCESS_TOKEN"))
+    parser.add_argument("--user-id", default=os.getenv("PINGCODE_USER_ID"))
+    parser.add_argument("--user-name", default=os.getenv("PINGCODE_USER_NAME"))
     parser.add_argument("--no-token-cache", action="store_true")
     parser.add_argument("--method", default="GET", type=str.upper, choices=HTTP_METHODS)
     parser.add_argument("--path", required=True, help="API path, for example /v1/project/projects")
@@ -300,8 +309,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     return client.request(
         args.method,
         args.path,
-        params=expand_identity_placeholders(parse_key_values(args.param)),
-        body=expand_identity_placeholders(parse_json_object(args.data, "--data")),
+        params=expand_identity_placeholders(
+            parse_key_values(args.param),
+            user_id=args.user_id,
+            user_name=args.user_name,
+        ),
+        body=expand_identity_placeholders(
+            parse_json_object(args.data, "--data"),
+            user_id=args.user_id,
+            user_name=args.user_name,
+        ),
         dry_run=args.dry_run,
     )
 

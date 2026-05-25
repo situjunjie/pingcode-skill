@@ -37,9 +37,9 @@ export PINGCODE_USER_NAME="your PingCode display/name"
 export PINGCODE_USER_ID="your PingCode user id"
 ```
 
-Do not write credentials into files or prompts. `client_credentials` returns an enterprise token with broad permissions and does not represent a specific human user. When the user says "我的" or "我负责的", use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` if present; otherwise ask the user for their PingCode user name or user id before filtering by assignee.
+You may also pass one-off values with `--client-id`, `--client-secret`, `--user-id`, and `--user-name` when invoking `scripts/pingcode.py`. Prefer environment variables or a local shell profile for repeated use; prefer a password manager / secret manager that injects environment variables for shared machines or CI. Do not write credentials into tracked files, prompts, or skill docs.
 
-If credentials are missing, tell the user to configure `PINGCODE_CLIENT_ID` and `PINGCODE_CLIENT_SECRET` as environment variables. For "我的" requests, tell the user to configure `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, or ask them to provide their PingCode user id/name before continuing. The CLI supports `@me` for `PINGCODE_USER_ID` and `@me_name` for `PINGCODE_USER_NAME`; it will print setup guidance if the matching environment variable is absent.
+`client_credentials` returns an enterprise token with broad permissions and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人", "all users", or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` or the matching CLI flags; if missing, ask the user for their PingCode user id/name or tell them how to configure it before filtering or assigning. The CLI supports `@me` for the current user id and `@me_name` for the current user name; it will print setup guidance if the matching value is absent.
 
 ## Main Tool
 
@@ -53,11 +53,11 @@ Common commands:
 
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param project_ids=PROJECT_ID --param page_size=20
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"New story"}' --dry-run
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"New task"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"New story","assignee_id":"@me"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"New task","assignee_id":"@me"}' --dry-run
 python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}' --dry-run
 python3 scripts/pingcode.py --method GET --path /v1/ship/products --param page_size=20
 python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"New idea"}' --dry-run
@@ -76,7 +76,7 @@ All output is JSON by default so agents can parse it reliably.
 ## Safety Rules
 
 * Never guess `state_id`, `type_id`, `priority_id`, `project_id`, or `product_id`.
-* Never infer a human user from an enterprise token. For "我的" requests, require `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, or ask the user and guide them to configure those variables.
+* Never infer a human user from an enterprise token. For work item create/query requests, default to `@me` only when a current user is configured; if the user explicitly asks for "所有人" / all users, do not add `assignee_ids=@me` or `assignee_id=@me`.
 * For status changes, fetch valid states for the work item project and type before patching.
 * Treat HTTP 429 as rate limit. Wait for `x-pc-retry-after` seconds before retrying.
 * Prefer the narrowest query possible. Pagination defaults to 30 and maxes at 100.

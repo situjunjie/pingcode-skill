@@ -98,6 +98,48 @@ class PingCodeCliTests(unittest.TestCase):
 
         self.assertEqual(result["params"]["assignee_ids"], "user-1")
 
+    def test_me_placeholder_expands_from_user_id_flag(self):
+        parser = pingcode.build_parser()
+        args = parser.parse_args(
+            [
+                "--method",
+                "POST",
+                "--path",
+                "/v1/project/work_items",
+                "--user-id",
+                "user-flag-1",
+                "--data",
+                '{"project_id":"project-1","type_id":"task","title":"Task","assignee_id":"@me"}',
+                "--dry-run",
+            ]
+        )
+
+        with mock.patch.dict("os.environ", {}, clear=True):
+            result = pingcode.run(args)
+
+        self.assertEqual(result["json"]["assignee_id"], "user-flag-1")
+
+    def test_me_name_placeholder_expands_from_user_name_flag(self):
+        parser = pingcode.build_parser()
+        args = parser.parse_args(
+            [
+                "--method",
+                "GET",
+                "--path",
+                "/v1/project/work_items",
+                "--user-name",
+                "Situ",
+                "--param",
+                "keywords=@me_name",
+                "--dry-run",
+            ]
+        )
+
+        with mock.patch.dict("os.environ", {}, clear=True):
+            result = pingcode.run(args)
+
+        self.assertEqual(result["params"]["keywords"], "Situ")
+
     def test_missing_me_placeholder_prints_identity_guidance(self):
         parser = pingcode.build_parser()
         args = parser.parse_args(
@@ -117,6 +159,7 @@ class PingCodeCliTests(unittest.TestCase):
                 pingcode.run(args)
 
         self.assertIn("PINGCODE_USER_ID", str(ctx.exception))
+        self.assertIn("--user-id", str(ctx.exception))
         self.assertIn("client_credentials is an enterprise token", str(ctx.exception))
 
     def test_missing_credentials_prints_environment_guidance(self):

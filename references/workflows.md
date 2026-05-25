@@ -4,13 +4,14 @@
 
 | User says | Use |
 |---|---|
-| "查看我当前没完成的任务" | Require `PINGCODE_USER_ID` or ask for the user's PingCode identity, list work items filtered by `assignee_ids`, then interpret non-completed states |
-| "查看我的未解决缺陷" | Require `PINGCODE_USER_ID` or ask for the user's PingCode identity, list work items filtered by `assignee_ids` and `type_ids=bug`, then interpret non-completed states |
-| "帮我在 xxx 故事下新增工作项" | Find the story, then create a child work item with `POST /v1/project/work_items` and `parent_id` |
+| "查看当前没完成的任务" | Unless the user says "所有人", require the configured current user and list work items filtered by `assignee_ids=@me`, then interpret non-completed states |
+| "查看所有人当前没完成的任务" | Do not add the current-user assignee filter; narrow by project/type/status if available |
+| "查看我的未解决缺陷" | Require the configured current user, list work items filtered by `assignee_ids=@me` and `type_ids=bug`, then interpret non-completed states |
+| "帮我在 xxx 故事下新增工作项" | Find the story, then create a child work item with `POST /v1/project/work_items`, `parent_id`, and `assignee_id=@me` unless another assignee or "所有人" is explicit |
 | "把某个工作项改成已完成/进行中" | Resolve states, then patch the work item with `state_id` |
-| "创建一个故事/任务/缺陷" | Resolve project/type, then create via `POST /v1/project/work_items` |
+| "创建一个故事/任务/缺陷" | Resolve project/type, then create via `POST /v1/project/work_items` with `assignee_id=@me` unless another assignee or "所有人" is explicit |
 
-This skill uses `client_credentials`, so the token is an enterprise token and does not represent a specific human user. For "my" requests, use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` if present. If neither is set, guide the user to configure those environment variables or ask for their PingCode user name/user id before filtering by assignee.
+This skill uses `client_credentials`, so the token is an enterprise token and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人" / all users or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` or the matching CLI flags if present. If neither is set, guide the user to configure a current user or ask for their PingCode user name/user id before filtering or assigning.
 
 The CLI accepts identity placeholders:
 
@@ -23,6 +24,8 @@ The CLI accepts identity placeholders:
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param page_size=100
 ```
+
+Use this same current-user filter for generic work item queries unless the user explicitly asks for "所有人" / all users.
 
 Optional filters:
 
@@ -52,10 +55,10 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
 3. Dry run:
 
    ```bash
-   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"Child task"}' --dry-run
+   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"Child task","assignee_id":"@me"}' --dry-run
    ```
 
-4. Execute only after the parent story is unambiguous.
+4. Execute only after the parent story is unambiguous. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
 
 ## Update a Work Item Status
 
@@ -99,10 +102,10 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
 4. Dry run:
 
    ```bash
-   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"Title"}' --dry-run
+   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"Title","assignee_id":"@me"}' --dry-run
    ```
 
-5. Execute without `--dry-run`.
+5. Execute without `--dry-run`. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
 
 ## Create a Product Idea
 

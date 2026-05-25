@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Install the PingCode Codex skill with npx.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/situjunjie/pingcode-skill.git"
+  },
   "bin": {
     "pingcode-skill": "./bin/install.js"
   },

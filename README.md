@@ -48,9 +48,9 @@ export PINGCODE_USER_NAME="你的 PingCode 用户名或显示名"
 export PINGCODE_USER_ID="你的 PingCode 用户 ID"
 ```
 
-不要把 `client_secret`、access token 或 token cache 提交到仓库。
+也可以在单次调用时传入 `--client-id`、`--client-secret`、`--user-id`、`--user-name`。日常使用推荐放在本机 shell profile 或由 1Password、macOS Keychain、Vault、CI secret 等工具注入为环境变量；不建议把 secret 写进仓库里的配置文件。不要把 `client_secret`、access token 或 token cache 提交到仓库。
 
-如果脚本调用时缺少 `PINGCODE_CLIENT_ID` / `PINGCODE_CLIENT_SECRET`，会直接输出 `export` 配置示例并退出。涉及“我的”“我负责的”这类请求时，企业令牌不能代表个人身份；如果没有 `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`，agent 应先引导用户配置环境变量，或请用户提供自己的 PingCode 用户名称/用户 ID 后再继续。
+如果脚本调用时缺少 `PINGCODE_CLIENT_ID` / `PINGCODE_CLIENT_SECRET`，会直接输出 `export` 配置示例并退出。企业令牌不能代表个人身份；操作创建工作项、查询工作项时，如果用户没有明确说“所有人”或指定其他负责人，agent 应默认使用当前用户。当前用户来自 `PINGCODE_USER_ID` / `PINGCODE_USER_NAME` 或 `--user-id` / `--user-name`；如果没有配置，agent 应先引导用户配置，或请用户提供自己的 PingCode 用户名称/用户 ID 后再继续。
 
 ## 安装
 
@@ -103,7 +103,7 @@ export PINGCODE_CLIENT_ID="..."
 export PINGCODE_CLIENT_SECRET="..."
 ```
 
-涉及“我的”“我负责的”这类请求时，还需要配置用户身份：
+创建或查询工作项时，如果没有明确指定“所有人”或其他负责人，skill 会默认使用当前用户，因此建议同时配置用户身份：
 
 ```bash
 export PINGCODE_USER_NAME="你的 PingCode 用户名或显示名"
@@ -149,11 +149,11 @@ python3 scripts/pingcode.py --help
 
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param project_ids=PROJECT_ID --param page_size=20
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=story
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"新用户故事"}' --dry-run
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"子任务"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"新用户故事","assignee_id":"@me"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"子任务","assignee_id":"@me"}' --dry-run
 python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}' --dry-run
 python3 scripts/pingcode.py --method GET --path /v1/ship/products --param page_size=20
 python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"新产品需求"}' --dry-run
@@ -163,8 +163,10 @@ python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"produc
 
 ## 自然语言到命令的映射原则
 
-- “我”的身份：因为使用企业令牌，不能从 token 推断具体用户。优先读取 `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`；如果没有配置，就要求用户告知自己的 PingCode 用户名称或用户 ID。
-- 用户占位符：CLI 支持在参数和 JSON 请求体里使用 `@me` 表示 `PINGCODE_USER_ID`，使用 `@me_name` 表示 `PINGCODE_USER_NAME`。如果对应环境变量不存在，脚本会输出配置引导并退出。
+- 当前用户默认规则：操作创建工作项、查询工作项时，如果用户没有明确说“所有人”或指定其他负责人，默认按当前用户处理。查询时加 `--param assignee_ids=@me`；创建时在 JSON 里加 `"assignee_id":"@me"`。
+- “所有人”：这是当前用户默认规则的 opt-out。用户明确说“所有人”时，不要加 `assignee_ids=@me` 或 `assignee_id=@me`，但仍应尽量用项目、类型、状态等条件缩小范围。
+- “我”的身份：因为使用企业令牌，不能从 token 推断具体用户。优先读取 `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`，或使用 `--user-id` / `--user-name`；如果没有配置，就要求用户告知自己的 PingCode 用户名称或用户 ID。
+- 用户占位符：CLI 支持在参数和 JSON 请求体里使用 `@me` 表示当前用户 ID，使用 `@me_name` 表示当前用户名称。如果对应配置不存在，脚本会输出配置引导并退出。
 - “未完成”：查询工作项后，由模型把 `state.type` 为 `pending`、`in_progress` 的项视为未完成，除非用户另有定义。
 - “未解决缺陷”：调用 `/v1/project/work_items`，传 `type_ids=bug` 和负责人过滤，例如 `--param assignee_ids=@me`，再按状态过滤未完成项。
 - “在某故事下新增工作项”：先调用 `/v1/project/work_items` 按编号或关键词找到父故事，再调用 `POST /v1/project/work_items` 并传 `parent_id`。
