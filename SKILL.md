@@ -46,7 +46,7 @@ You may also pass one-off values with `--client-id`, `--client-secret`, `--user-
 
 The CLI keeps a local workspace cache at `.pingcode-skill/cache.json` by default. This file stores user/project/sprint preferences plus cached user lists and status dictionaries, so agents can avoid repeat list/dictionary API calls.
 
-Initial setup for a workspace:
+Initial setup for a workspace can be explicit:
 
 ```bash
 python3 scripts/pingcode.py --cache-projects
@@ -57,6 +57,8 @@ python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
 ```
+
+If a work item query needs a current project or sprint and that preference is missing, the CLI fetches and caches the project/sprint list, prints selectable JSON options plus the exact `--set-current-project` or `--set-current-sprint` command, and exits non-zero so the agent can ask the user to choose before retrying.
 
 If the global user-list endpoint is unavailable for a tenant, `--cache-users --project-id PROJECT_ID` caches project members instead. When the user asks for another person's work items, prefer cached lookup such as `--param assignee_ids=@user:Alice`; refresh with `--cache-users` only if the person is not in the cache.
 

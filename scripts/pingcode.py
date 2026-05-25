@@ -49,6 +49,7 @@ WORKSPACE_DEFAULT_GUIDANCE = (
     "  python3 scripts/pingcode.py --set-current-sprint SPRINT_ID\n"
     "Use --all-projects or --all-sprints when the user explicitly asks for all projects or all iterations."
 )
+MAX_SELECTION_OPTIONS = 20
 
 
 def empty_workspace_cache() -> dict[str, Any]:
@@ -155,6 +156,38 @@ def item_names(item: dict[str, Any]) -> list[str]:
         if isinstance(value, str) and value:
             names.append(value)
     return names
+
+
+def selection_item(item: dict[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key in ("id", "name", "display_name", "identifier"):
+        value = item.get(key)
+        if isinstance(value, str) and value:
+            result[key] = value
+    return result
+
+
+def selection_options(payload: Any) -> tuple[list[dict[str, Any]], int]:
+    values = page_values(payload)
+    options = [selection_item(item) for item in values[:MAX_SELECTION_OPTIONS]]
+    return [item for item in options if item], len(values)
+
+
+def selection_guidance(
+    label: str,
+    payload: Any,
+    command: str,
+    cache_message: str,
+) -> str:
+    options, total = selection_options(payload)
+    suffix = "" if total <= len(options) else f" Showing first {len(options)} of {total}."
+    return (
+        f"Current PingCode {label} is not cached. {cache_message}\n"
+        "Ask the user to choose one option, then run:\n"
+        f"  {command}\n"
+        f"Available {label} options ({total} total).{suffix}\n"
+        f"{json.dumps(options, ensure_ascii=False, indent=2)}"
+    )
 
 
 def find_cached_item(items: list[dict[str, Any]], query: str, label: str) -> dict[str, Any]:
@@ -536,6 +569,18 @@ def refresh_command(client: PingCodeClient, path: str, params: dict[str, Any] | 
     return client.request("GET", path, params=params or {}, use_workspace_cache=False)
 
 
+def cache_projects(client: PingCodeClient) -> dict[str, Any]:
+    return refresh_command(client, "/v1/project/projects", {"page_size": 100})
+
+
+def cache_sprints(client: PingCodeClient, project_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        f"/v1/project/projects/{urllib.parse.quote(project_id)}/sprints",
+        {"page_size": 100},
+    )
+
+
 def cache_users(client: PingCodeClient, project_id: str | None = None) -> dict[str, Any]:
     selected_project_id = project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
     if isinstance(selected_project_id, str) and selected_project_id:
@@ -614,6 +659,7 @@ def apply_default_work_item_filters(
     current_user: bool = True,
     all_projects: bool = False,
     all_sprints: bool = False,
+    discover_missing_defaults: bool = True,
 ) -> dict[str, Any]:
     if (
         normalize_path(path, base_url=client.base_url) != "/v1/project/work_items"
@@ -627,12 +673,35 @@ def apply_default_work_item_filters(
     if not all_projects and "project_ids" not in result:
         project_id = preferences.get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
-            raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
+            if not discover_missing_defaults:
+                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
+            projects = cache_projects(client)
+            raise PingCodeError(
+                selection_guidance(
+                    "project",
+                    projects,
+                    "python3 scripts/pingcode.py --set-current-project PROJECT_ID_OR_NAME",
+                    "Fetched and cached the project list.",
+                )
+            )
         result["project_ids"] = project_id
     if not all_sprints and "sprint_ids" not in result:
         sprint_id = preferences.get("current_sprint_id")
         if not isinstance(sprint_id, str) or not sprint_id:
-            raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
+            if not discover_missing_defaults:
+                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
+            project_id = result.get("project_ids")
+            if not isinstance(project_id, str) or not project_id:
+                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
+            sprints = cache_sprints(client, project_id)
+            raise PingCodeError(
+                selection_guidance(
+                    "sprint",
+                    sprints,
+                    "python3 scripts/pingcode.py --set-current-sprint SPRINT_ID_OR_NAME",
+                    "Fetched and cached the sprint list for the current project.",
+                )
+            )
         result["sprint_ids"] = sprint_id
     return expand_identity_placeholders(
         result,
@@ -724,12 +793,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.cache_users:
         return cache_users(client, args.project_id)
     if args.cache_projects:
-        return refresh_command(client, "/v1/project/projects", {"page_size": 100})
+        return cache_projects(client)
     if args.cache_sprints:
         project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
             raise PingCodeError("Provide --project-id or set a cached current project before --cache-sprints")
-        return refresh_command(client, f"/v1/project/projects/{urllib.parse.quote(project_id)}/sprints", {"page_size": 100})
+        return cache_sprints(client, project_id)
     if args.cache_states:
         project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
@@ -766,6 +835,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             current_user=not args.all_users,
             all_projects=args.all_projects,
             all_sprints=args.all_sprints,
+            discover_missing_defaults=not args.dry_run,
         )
     return client.request(
         args.method,

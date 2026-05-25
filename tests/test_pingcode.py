@@ -286,6 +286,95 @@ class PingCodeCliTests(unittest.TestCase):
 
         self.assertEqual(result["params"], {"assignee_ids": "user-cached"})
 
+    def test_missing_current_project_fetches_projects_and_returns_selection_guidance(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(cache_path, preferences={"current_user_id": "user-cached"})
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "project-1", "name": "Core Project"}]}),
+            ) as urlopen:
+                with self.assertRaises(pingcode.PingCodeError) as ctx:
+                    pingcode.run(args)
+
+            request = urlopen.call_args.args[0]
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertIn("/v1/project/projects", request.full_url)
+        self.assertEqual(payload["projects"]["values"][0]["id"], "project-1")
+        self.assertIn("Current PingCode project is not cached", str(ctx.exception))
+        self.assertIn("Core Project", str(ctx.exception))
+        self.assertIn("--set-current-project", str(ctx.exception))
+
+    def test_missing_current_project_dry_run_does_not_fetch_projects(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(cache_path, preferences={"current_user_id": "user-cached"})
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            with mock.patch("urllib.request.urlopen") as urlopen:
+                with self.assertRaises(pingcode.PingCodeError) as ctx:
+                    pingcode.run(args)
+
+        urlopen.assert_not_called()
+        self.assertIn("Workspace defaults are missing", str(ctx.exception))
+
+    def test_missing_current_sprint_fetches_sprints_and_returns_selection_guidance(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={"current_user_id": "user-cached", "current_project_id": "project-1"},
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "sprint-1", "name": "Sprint 1"}]}),
+            ) as urlopen:
+                with self.assertRaises(pingcode.PingCodeError) as ctx:
+                    pingcode.run(args)
+
+            request = urlopen.call_args.args[0]
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertIn("/v1/project/projects/project-1/sprints", request.full_url)
+        self.assertEqual(payload["sprints"]["project-1"]["values"][0]["id"], "sprint-1")
+        self.assertIn("Current PingCode sprint is not cached", str(ctx.exception))
+        self.assertIn("Sprint 1", str(ctx.exception))
+        self.assertIn("--set-current-sprint", str(ctx.exception))
+
     def test_user_name_placeholder_expands_from_cached_users(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
