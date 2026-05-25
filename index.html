@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="PingCode Skill lets AI agents query and operate PingCode project and product data through the official REST API."
+    />
+    <title>PingCode Skill</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17202a;
+        --muted: #5f6f7f;
+        --line: #dbe3ea;
+        --panel: #ffffff;
+        --soft: #f4f7fa;
+        --blue: #1f6feb;
+        --green: #119c66;
+        --orange: #f48b24;
+        --shadow: 0 24px 70px rgba(18, 31, 45, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(31, 111, 235, 0.1), transparent 34rem),
+          linear-gradient(180deg, #fbfdff 0%, #f6f9fc 48%, #ffffff 100%);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(18px);
+        background: rgba(251, 253, 255, 0.78);
+        border-bottom: 1px solid rgba(219, 227, 234, 0.8);
+      }
+
+      .nav {
+        display: flex;
+        min-height: 72px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+
+      .mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 10px;
+        color: white;
+        background: linear-gradient(135deg, var(--blue), var(--green));
+        box-shadow: 0 10px 28px rgba(31, 111, 235, 0.22);
+      }
+
+      .links {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .links a:hover {
+        color: var(--ink);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.04fr) minmax(320px, 0.96fr);
+        gap: 56px;
+        align-items: center;
+        min-height: calc(100vh - 72px);
+        min-height: calc(100svh - 72px);
+        padding: 82px 0 76px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 20px;
+        color: var(--green);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--green);
+        box-shadow: 0 0 0 6px rgba(17, 156, 102, 0.1);
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 720px;
+        font-size: clamp(42px, 7vw, 84px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 670px;
+        margin: 28px 0 0;
+        color: var(--muted);
+        font-size: clamp(18px, 2.2vw, 22px);
+        line-height: 1.65;
+      }
+
+      .install {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        max-width: 650px;
+        margin-top: 36px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 18px 50px rgba(18, 31, 45, 0.08);
+      }
+
+      .install code {
+        display: block;
+        min-width: 0;
+        overflow-x: auto;
+        padding: 12px 14px;
+        color: #102131;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 15px;
+        white-space: nowrap;
+      }
+
+      .copy {
+        display: inline-flex;
+        width: 112px;
+        height: 46px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 12px;
+        color: white;
+        background: var(--blue);
+        cursor: pointer;
+      }
+
+      .copy:hover {
+        background: #185ecb;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .meta span {
+        padding: 8px 12px;
+        border: 1px solid rgba(219, 227, 234, 0.9);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .visual {
+        position: relative;
+        min-height: 470px;
+      }
+
+      .console {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(219, 227, 234, 0.92);
+        border-radius: 18px;
+        background: #0f1720;
+        box-shadow: var(--shadow);
+      }
+
+      .console::before {
+        content: "";
+        display: block;
+        height: 42px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          radial-gradient(circle at 22px 21px, #ff6b5f 0 5px, transparent 6px),
+          radial-gradient(circle at 42px 21px, #f5bd4f 0 5px, transparent 6px),
+          radial-gradient(circle at 62px 21px, #58c96f 0 5px, transparent 6px),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+      }
+
+      .console-body {
+        padding: 26px;
+        color: #d9e7f5;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+
+      .line {
+        display: block;
+        white-space: pre-wrap;
+      }
+
+      .prompt {
+        color: #82d9b5;
+      }
+
+      .dim {
+        color: #8fa2b7;
+      }
+
+      .json-key {
+        color: #89c2ff;
+      }
+
+      .json-value {
+        color: #ffcf8a;
+      }
+
+      .workflow-card {
+        position: absolute;
+        right: -8px;
+        bottom: 4px;
+        width: min(340px, 82%);
+        padding: 20px;
+        border: 1px solid rgba(219, 227, 234, 0.94);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 22px 55px rgba(18, 31, 45, 0.16);
+      }
+
+      .workflow-card h2 {
+        margin: 0 0 16px;
+        font-size: 15px;
+      }
+
+      .flow {
+        display: grid;
+        gap: 12px;
+      }
+
+      .flow-item {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+
+      .flow-index {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 999px;
+        color: white;
+        background: var(--green);
+        font-size: 13px;
+        font-weight: 760;
+      }
+
+      .flow-title {
+        margin: 0 0 3px;
+        font-weight: 720;
+      }
+
+      .flow-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      section {
+        padding: 72px 0;
+      }
+
+      .section-head {
+        max-width: 720px;
+        margin-bottom: 30px;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 48px);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .section-head p {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.65;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .feature {
+        min-height: 210px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: 0 10px 34px rgba(18, 31, 45, 0.06);
+      }
+
+      .feature .icon {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        margin-bottom: 24px;
+        place-items: center;
+        border-radius: 12px;
+        color: white;
+        background: var(--ink);
+        font-weight: 800;
+      }
+
+      .feature:nth-child(2) .icon,
+      .feature:nth-child(5) .icon {
+        background: var(--blue);
+      }
+
+      .feature:nth-child(3) .icon,
+      .feature:nth-child(6) .icon {
+        background: var(--orange);
+      }
+
+      .feature h3 {
+        margin: 0 0 10px;
+        font-size: 20px;
+        letter-spacing: 0;
+      }
+
+      .feature p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .step {
+        padding: 24px;
+        border-top: 3px solid var(--blue);
+        background: var(--soft);
+      }
+
+      .step:nth-child(2) {
+        border-color: var(--green);
+      }
+
+      .step:nth-child(3) {
+        border-color: var(--orange);
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 12px;
+        font-size: 18px;
+      }
+
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .command-list {
+        display: grid;
+        gap: 12px;
+        max-width: 900px;
+      }
+
+      .command {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 16px;
+        align-items: center;
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: white;
+      }
+
+      .command span {
+        color: var(--muted);
+        font-weight: 680;
+      }
+
+      .command code {
+        overflow-x: auto;
+        color: #102131;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .footer {
+        padding: 36px 0 46px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+        font-size: 14px;
+      }
+
+      .footer .shell {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      @media (max-width: 880px) {
+        .links {
+          display: none;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          min-height: auto;
+          padding-top: 58px;
+          gap: 42px;
+        }
+
+        .visual {
+          min-height: 440px;
+        }
+
+        .grid,
+        .steps {
+          grid-template-columns: 1fr;
+        }
+
+        .command {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .shell {
+          width: min(100% - 28px, 1120px);
+        }
+
+        .install {
+          grid-template-columns: 1fr;
+        }
+
+        .copy {
+          width: 100%;
+        }
+
+        .console-body {
+          padding: 20px;
+          font-size: 12px;
+        }
+
+        .workflow-card {
+          position: relative;
+          right: auto;
+          bottom: auto;
+          width: 100%;
+          margin-top: 14px;
+        }
+
+        .visual {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <nav class="shell nav" aria-label="主导航">
+        <a class="brand" href="#top" aria-label="PingCode Skill 首页">
+          <span class="mark" aria-hidden="true">P</span>
+          <span>PingCode Skill</span>
+        </a>
+        <div class="links">
+          <a href="#features">功能</a>
+          <a href="#workflow">流程</a>
+          <a href="#commands">命令</a>
+          <a href="https://github.com/situjunjie/pingcode-skill">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="shell hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Codex / Claude Code 的 PingCode 操作技能</p>
+          <h1 id="hero-title">让 AI Agent 直接接入 PingCode 工作流</h1>
+          <p class="lead">
+            通过 PingCode 官方 REST API 查询项目、迭代、工作项和产品需求，让 Agent
+            用自然语言完成项目管理操作，并保留 dry-run、凭证隔离和上下文缓存。
+          </p>
+
+          <div class="install" aria-label="安装命令">
+            <code id="install-command">npx pingcode-skill@latest</code>
+            <button class="copy" type="button" data-copy="#install-command">复制</button>
+          </div>
+
+          <div class="meta" aria-label="兼容性">
+            <span>默认安装到 Codex skill 目录</span>
+            <span>支持 Claude Code target</span>
+            <span>Node.js 18+</span>
+          </div>
+        </div>
+
+        <div class="visual" aria-label="PingCode Skill 使用预览">
+          <div class="console" aria-hidden="true">
+            <div class="console-body">
+              <span class="line"><span class="prompt">$</span> npx pingcode-skill@latest</span>
+              <span class="line dim">Installed to ~/.codex/skills/pingcode</span>
+              <span class="line">&nbsp;</span>
+              <span class="line"><span class="prompt">$</span> 使用 $pingcode 查看我当前没完成的任务</span>
+              <span class="line">{</span>
+              <span class="line">  <span class="json-key">"project"</span>: <span class="json-value">"研发项目"</span>,</span>
+              <span class="line">  <span class="json-key">"assignee"</span>: <span class="json-value">"@me"</span>,</span>
+              <span class="line">  <span class="json-key">"state"</span>: <span class="json-value">"未完成"</span>,</span>
+              <span class="line">  <span class="json-key">"items"</span>: [<span class="json-value">"story"</span>, <span class="json-value">"task"</span>, <span class="json-value">"bug"</span>]</span>
+              <span class="line">}</span>
+            </div>
+          </div>
+          <aside class="workflow-card" aria-label="核心流程">
+            <h2>从安装到执行</h2>
+            <div class="flow">
+              <div class="flow-item">
+                <span class="flow-index">1</span>
+                <div>
+                  <p class="flow-title">安装 skill</p>
+                  <p class="flow-copy">一条 npx 命令写入个人 skills 目录。</p>
+                </div>
+              </div>
+              <div class="flow-item">
+                <span class="flow-index">2</span>
+                <div>
+                  <p class="flow-title">配置凭证</p>
+                  <p class="flow-copy">使用环境变量保存 client id 和 secret。</p>
+                </div>
+              </div>
+              <div class="flow-item">
+                <span class="flow-index">3</span>
+                <div>
+                  <p class="flow-title">自然语言操作</p>
+                  <p class="flow-copy">Agent 将需求映射为安全、可审计的 CLI 调用。</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="features" class="shell" aria-labelledby="features-title">
+        <div class="section-head">
+          <h2 id="features-title">面向项目管理的高频能力</h2>
+          <p>把 PingCode 的常用操作包装成 Agent 可以稳定调用的 skill，而不是零散提示词。</p>
+        </div>
+        <div class="grid">
+          <article class="feature">
+            <span class="icon" aria-hidden="true">01</span>
+            <h3>查询工作项</h3>
+            <p>按当前用户、项目、迭代查询任务、故事和缺陷，也支持显式查询全部范围。</p>
+          </article>
+          <article class="feature">
+            <span class="icon" aria-hidden="true">02</span>
+            <h3>创建和更新</h3>
+            <p>创建故事、任务、缺陷，在故事下添加子工作项，并更新工作项状态。</p>
+          </article>
+          <article class="feature">
+            <span class="icon" aria-hidden="true">03</span>
+            <h3>产品需求</h3>
+            <p>查询产品和产品需求，覆盖项目管理与产品管理两类核心场景。</p>
+          </article>
+          <article class="feature">
+            <span class="icon" aria-hidden="true">04</span>
+            <h3>上下文缓存</h3>
+            <p>缓存当前用户、项目、迭代和状态字典，减少重复选择和无效 API 调用。</p>
+          </article>
+          <article class="feature">
+            <span class="icon" aria-hidden="true">05</span>
+            <h3>安全默认值</h3>
+            <p>写操作建议先 dry-run；不会把 client secret、access token 写入仓库。</p>
+          </article>
+          <article class="feature">
+            <span class="icon" aria-hidden="true">06</span>
+            <h3>统一 CLI</h3>
+            <p>通过单个脚本调用 PingCode REST API，输出 JSON，方便 Agent 解析和追踪。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="workflow" class="shell" aria-labelledby="workflow-title">
+        <div class="section-head">
+          <h2 id="workflow-title">三步启用</h2>
+          <p>部署到本机 Agent 后，日常操作就可以交给自然语言入口。</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <strong>安装到 Agent</strong>
+            <p>Codex 默认安装到 <code>~/.codex/skills/pingcode</code>，Claude Code 可指定 target。</p>
+          </div>
+          <div class="step">
+            <strong>配置 PingCode 凭证</strong>
+            <p>设置 <code>PINGCODE_CLIENT_ID</code> 和 <code>PINGCODE_CLIENT_SECRET</code>。</p>
+          </div>
+          <div class="step">
+            <strong>初始化工作区</strong>
+            <p>运行 <code>pingcode-ctx</code> 选择当前用户、项目和迭代。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="commands" class="shell" aria-labelledby="commands-title">
+        <div class="section-head">
+          <h2 id="commands-title">常用命令</h2>
+          <p>首页命令适合最快安装；下面是不同环境的补充入口。</p>
+        </div>
+        <div class="command-list">
+          <div class="command">
+            <span>Codex 安装</span>
+            <code>npx pingcode-skill@latest --force</code>
+          </div>
+          <div class="command">
+            <span>Claude Code 安装</span>
+            <code>npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode" --force</code>
+          </div>
+          <div class="command">
+            <span>初始化上下文</span>
+            <code>pingcode-ctx</code>
+          </div>
+          <div class="command">
+            <span>查看 CLI 帮助</span>
+            <code>python3 scripts/pingcode.py --help</code>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="shell">
+        <span>PingCode Skill</span>
+        <a href="https://www.npmjs.com/package/pingcode-skill">npm package</a>
+      </div>
+    </footer>
+
+    <script>
+      const copyButton = document.querySelector("[data-copy]");
+      copyButton?.addEventListener("click", async () => {
+        const selector = copyButton.getAttribute("data-copy");
+        const target = selector ? document.querySelector(selector) : null;
+        const text = target?.textContent?.trim();
+        if (!text) return;
+
+        try {
+          await navigator.clipboard.writeText(text);
+          copyButton.textContent = "已复制";
+          window.setTimeout(() => {
+            copyButton.textContent = "复制";
+          }, 1400);
+        } catch {
+          copyButton.textContent = "复制失败";
+          window.setTimeout(() => {
+            copyButton.textContent = "复制";
+          }, 1400);
+        }
+      });
+    </script>
+  </body>
+</html>
