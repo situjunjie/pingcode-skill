@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 import time
 import urllib.error
@@ -19,6 +20,7 @@ from typing import Any
 DEFAULT_BASE_URL = "https://open.pingcode.com"
 DEFAULT_TOKEN_CACHE = "~/.cache/pingcode-skill/token.json"
 DEFAULT_WORKSPACE_CACHE = ".pingcode-skill/cache.json"
+CLI_COMMAND = f"python3 {shlex.quote(str(Path(__file__).resolve()))}"
 MAX_TOKEN_TTL_SECONDS = 29 * 24 * 60 * 60
 HTTP_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 USER_LOOKUP_RE = re.compile(r"@user:([^,]+)")
@@ -37,16 +39,16 @@ USER_ENV_GUIDANCE = (
     "  export PINGCODE_USER_NAME=\"...\"\n"
     "Use @me for current-user-id fields; use @me_name when a name lookup is needed.\n"
     "To discover IDs, run:\n"
-    "  python3 scripts/pingcode.py --cache-users\n"
+    f"  {CLI_COMMAND} --cache-users\n"
     "Then save your current user with:\n"
-    "  python3 scripts/pingcode.py --set-current-user USER_ID"
+    f"  {CLI_COMMAND} --set-current-user USER_ID"
 )
 WORKSPACE_DEFAULT_GUIDANCE = (
     "Workspace defaults are missing. Cache and set the current project/sprint, or explicitly opt out:\n"
-    "  python3 scripts/pingcode.py --cache-projects\n"
-    "  python3 scripts/pingcode.py --set-current-project PROJECT_ID\n"
-    "  python3 scripts/pingcode.py --cache-sprints --project-id PROJECT_ID\n"
-    "  python3 scripts/pingcode.py --set-current-sprint SPRINT_ID\n"
+    f"  {CLI_COMMAND} --cache-projects\n"
+    f"  {CLI_COMMAND} --set-current-project PROJECT_ID\n"
+    f"  {CLI_COMMAND} --cache-sprints --project-id PROJECT_ID\n"
+    f"  {CLI_COMMAND} --set-current-sprint SPRINT_ID\n"
     "Use --all-projects or --all-sprints when the user explicitly asks for all projects or all iterations."
 )
 MAX_SELECTION_OPTIONS = 20
@@ -680,7 +682,7 @@ def apply_default_work_item_filters(
                 selection_guidance(
                     "project",
                     projects,
-                    "python3 scripts/pingcode.py --set-current-project PROJECT_ID_OR_NAME",
+                    f"{CLI_COMMAND} --set-current-project PROJECT_ID_OR_NAME",
                     "Fetched and cached the project list.",
                 )
             )
@@ -698,7 +700,7 @@ def apply_default_work_item_filters(
                 selection_guidance(
                     "sprint",
                     sprints,
-                    "python3 scripts/pingcode.py --set-current-sprint SPRINT_ID_OR_NAME",
+                    f"{CLI_COMMAND} --set-current-sprint SPRINT_ID_OR_NAME",
                     "Fetched and cached the sprint list for the current project.",
                 )
             )
@@ -724,8 +726,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Single-command PingCode REST API caller",
         epilog=(
             "Examples: "
-            "python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20; "
-            "python3 scripts/pingcode.py --method POST --path /v1/project/work_items "
+            f"{CLI_COMMAND} --method GET --path /v1/project/projects --param page_size=20; "
+            f"{CLI_COMMAND} --method POST --path /v1/project/work_items "
             "--data '{\"project_id\":\"...\",\"type_id\":\"story\",\"title\":\"...\"}' --dry-run"
         ),
     )

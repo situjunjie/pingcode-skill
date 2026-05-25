@@ -2,6 +2,70 @@
 
 用于让 Codex、Claude 等 AI agent 通过 PingCode 官方 REST API 操作项目管理和产品管理数据的 skill。
 
+## 安装
+
+已发布到 npm：`pingcode-skill@latest`。
+
+安装到 Codex：
+
+```bash
+npx pingcode-skill@latest
+```
+
+默认会安装到 Codex 个人 skill 目录：
+
+```text
+~/.codex/skills/pingcode
+```
+
+安装到 Claude Code：
+
+```bash
+npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode"
+```
+
+Claude Code 的个人 skills 目录是：
+
+```text
+~/.claude/skills/<skill-name>/SKILL.md
+```
+
+也可以安装成当前项目专用 skill：
+
+```bash
+npx pingcode-skill@latest --target ".claude/skills/pingcode"
+```
+
+常用安装参数：
+
+```bash
+npx pingcode-skill@latest --force
+npx pingcode-skill@latest --target "$HOME/.codex/skills/pingcode"
+npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode" --force
+```
+
+如果用户设置了 `CODEX_HOME`，默认安装目录会变成 `$CODEX_HOME/skills/pingcode`。
+
+安装完成后，配置 PingCode 凭证：
+
+```bash
+export PINGCODE_CLIENT_ID="..."
+export PINGCODE_CLIENT_SECRET="..."
+```
+
+创建或查询工作项时，如果没有明确指定“所有人”或其他负责人，skill 会默认使用当前用户，因此建议同时配置用户身份：
+
+```bash
+export PINGCODE_USER_NAME="你的 PingCode 用户名或显示名"
+export PINGCODE_USER_ID="你的 PingCode 用户 ID"
+```
+
+更新到最新版本时可运行：
+
+```bash
+npx pingcode-skill@latest --force
+```
+
 ## 复制给 AI Agent 的安装提示词
 
 把下面这段提示词复制给你的 AI Agent，让它在你的本机环境里完成安装：
@@ -103,75 +167,21 @@ python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param a
 
 查询工作项时，CLI 会自动补当前用户、当前项目、当前迭代过滤条件。用户明确要求“所有人”“全部项目”“全部迭代”时分别加 `--all-users`、`--all-projects`、`--all-sprints`。
 
-## 安装
 
-已发布到 npm：`pingcode-skill@0.1.0`。
-
-安装到 Codex：
-
-```bash
-npx pingcode-skill@0.1.0
-```
-
-默认会安装到 Codex 个人 skill 目录：
-
-```text
-~/.codex/skills/pingcode
-```
-
-安装到 Claude Code：
-
-```bash
-npx pingcode-skill@0.1.0 --target "$HOME/.claude/skills/pingcode"
-```
-
-Claude Code 的个人 skills 目录是：
-
-```text
-~/.claude/skills/<skill-name>/SKILL.md
-```
-
-也可以安装成当前项目专用 skill：
-
-```bash
-npx pingcode-skill@0.1.0 --target ".claude/skills/pingcode"
-```
-
-常用安装参数：
-
-```bash
-npx pingcode-skill@0.1.0 --force
-npx pingcode-skill@0.1.0 --target "$HOME/.codex/skills/pingcode"
-npx pingcode-skill@0.1.0 --target "$HOME/.claude/skills/pingcode" --force
-```
-
-如果用户设置了 `CODEX_HOME`，默认安装目录会变成 `$CODEX_HOME/skills/pingcode`。
-
-安装完成后，配置 PingCode 凭证：
-
-```bash
-export PINGCODE_CLIENT_ID="..."
-export PINGCODE_CLIENT_SECRET="..."
-```
-
-创建或查询工作项时，如果没有明确指定“所有人”或其他负责人，skill 会默认使用当前用户，因此建议同时配置用户身份：
-
-```bash
-export PINGCODE_USER_NAME="你的 PingCode 用户名或显示名"
-export PINGCODE_USER_ID="你的 PingCode 用户 ID"
-```
-
-更新到最新版本时可运行：
-
-```bash
-npx pingcode-skill@latest --force
-```
 
 ## CLI 入口
 
 ```bash
 python3 scripts/pingcode.py --help
 ```
+
+通过 `npx pingcode-skill` 安装后，安装器会把 skill 文档里的示例命令改写为已安装脚本的绝对路径，例如：
+
+```bash
+python3 ~/.codex/skills/pingcode/scripts/pingcode.py --help
+```
+
+在 Codex 里建议优先使用这个安装后的绝对路径命令。Codex 的沙箱联网审批按命令前缀复用授权，稳定的绝对路径比仓库内相对路径命令更容易命中已批准规则，减少重复确认。
 
 常用示例：
 

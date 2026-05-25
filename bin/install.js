@@ -11,7 +11,7 @@ const codexHome = process.env.CODEX_HOME
   : defaultCodexHome;
 const skillName = process.env.PINGCODE_SKILL_NAME || "pingcode";
 const targetDir = path.join(codexHome, "skills", skillName);
-const sourceEntries = ["SKILL.md", "agents", "references", "scripts"];
+const sourceEntries = ["SKILL.md", "README.md", "agents", "references", "scripts"];
 
 function usage() {
   return [
@@ -56,6 +56,33 @@ function copyEntry(name, destinationRoot) {
   });
 }
 
+function shellQuote(value) {
+  if (/^[A-Za-z0-9_/:=.,+-]+$/.test(value)) {
+    return value;
+  }
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function rewriteInstalledDocs(destinationRoot) {
+  const cliCommand = `python3 ${shellQuote(path.join(destinationRoot, "scripts", "pingcode.py"))}`;
+  const docs = [
+    path.join(destinationRoot, "SKILL.md"),
+    path.join(destinationRoot, "README.md"),
+    path.join(destinationRoot, "references", "workflows.md"),
+  ];
+
+  for (const file of docs) {
+    if (!fs.existsSync(file)) {
+      continue;
+    }
+    const original = fs.readFileSync(file, "utf8");
+    const rewritten = original.replaceAll("python3 scripts/pingcode.py", cliCommand);
+    if (rewritten !== original) {
+      fs.writeFileSync(file, rewritten);
+    }
+  }
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -74,6 +101,7 @@ function main() {
   for (const entry of sourceEntries) {
     copyEntry(entry, options.target);
   }
+  rewriteInstalledDocs(options.target);
 
   console.log(`Installed PingCode skill to ${options.target}`);
   console.log("");

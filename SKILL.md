@@ -72,6 +72,11 @@ Use the bundled CLI:
 python3 scripts/pingcode.py --help
 ```
 
+When installed by `npx pingcode-skill`, the installer rewrites these examples to the installed
+absolute script path, such as `python3 ~/.codex/skills/pingcode/scripts/pingcode.py`. In Codex,
+prefer that installed absolute command because sandbox/network approvals are matched by command
+prefix; a stable installed path is more likely to reuse a prior approval than a relative repo path.
+
 Common commands:
 
 ```bash
