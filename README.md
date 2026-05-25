@@ -156,6 +156,10 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 用户列表或项目成员列表
 - 工作项类型字典
 - 工作项状态字典
+- 工作项优先级字典
+- 工作项属性字典
+- 需求状态字典
+- 需求优先级字典
 
 首次写入默认缓存时，如果当前项目已有 `.gitignore`，CLI 会自动确保 `.pingcode-skill/` 已加入忽略列表。
 
@@ -208,6 +212,11 @@ python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
 python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states
+python3 scripts/pingcode.py --cache-work-item-priorities
+python3 scripts/pingcode.py --cache-work-item-properties
+# 产品需求字典按产品缓存，需要产品 ID：
+python3 scripts/pingcode.py --cache-idea-states --product-id PRODUCT_ID
+python3 scripts/pingcode.py --cache-idea-priorities --product-id PRODUCT_ID
 ```
 
 如果查询或创建工作项时工作区上下文不完整，CLI 会提示先运行 `pingcode-ctx`。agent 应先完成交互式上下文初始化，再重试原查询或创建命令。没有交互终端时，才使用下面的 `--cache-*` / `--set-current-*` 命令手动初始化。

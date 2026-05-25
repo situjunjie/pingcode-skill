@@ -68,6 +68,8 @@ python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
 python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states
+python3 scripts/pingcode.py --cache-work-item-priorities
+python3 scripts/pingcode.py --cache-work-item-properties
 ```
 
 If a work item query or create command needs the current user/project/sprint and the cache is incomplete, run `python3 scripts/pingcode_ctx.py` to complete the workspace context before retrying. Use the manual `--cache-*` / `--set-current-*` commands only when an interactive terminal is not available.
@@ -118,6 +120,7 @@ All output is JSON by default so agents can parse it reliably.
 * Never guess `state_id`, `type_id`, `priority_id`, `project_id`, or `product_id`.
 * Never infer a human user from an enterprise token. For work item create/query requests, default to `@me` only when a current user is configured; if the user explicitly asks for "所有人" / all users, do not add `assignee_ids=@me` or `assignee_id=@me`.
 * For status changes, use cached states when present; otherwise fetch valid states for the work item project and type before patching. Refresh stale type/state dictionaries with `--cache-states`; pass `--work-item-type-id TYPE_ID` only when refreshing one type.
+* For work item creates/updates that need `priority_id` or custom `properties`, refresh dictionaries with `--cache-work-item-priorities` and `--cache-work-item-properties`.
 * Treat HTTP 429 as rate limit. Wait for `x-pc-retry-after` seconds before retrying.
 * Prefer the narrowest query possible. Pagination defaults to 30 and maxes at 100.
 * Do not echo token values in final answers.

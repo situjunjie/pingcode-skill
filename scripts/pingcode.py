@@ -69,6 +69,10 @@ def empty_workspace_cache() -> dict[str, Any]:
         "sprints": {},
         "work_item_types": {},
         "work_item_states": {},
+        "work_item_priorities": {},
+        "work_item_properties": {},
+        "idea_states": {},
+        "idea_priorities": {},
     }
 
 
@@ -120,6 +124,14 @@ def load_workspace_cache(cache_path: Path | None) -> dict[str, Any]:
         cache["work_item_types"] = {}
     if not isinstance(cache.get("work_item_states"), dict):
         cache["work_item_states"] = {}
+    if not isinstance(cache.get("work_item_priorities"), dict):
+        cache["work_item_priorities"] = {}
+    if not isinstance(cache.get("work_item_properties"), dict):
+        cache["work_item_properties"] = {}
+    if not isinstance(cache.get("idea_states"), dict):
+        cache["idea_states"] = {}
+    if not isinstance(cache.get("idea_priorities"), dict):
+        cache["idea_priorities"] = {}
     return cache
 
 
@@ -408,12 +420,37 @@ def cached_response(
             work_item_types = workspace_cache.get("work_item_types") or {}
             cached = work_item_types.get(project_id_value)
             return cached if isinstance(cached, dict) else None
+    if normalized == "/v1/project/work_item/priorities":
+        project_id_value = params.get("project_id")
+        if isinstance(project_id_value, str):
+            priorities = workspace_cache.get("work_item_priorities") or {}
+            cached = priorities.get(project_id_value)
+            return cached if isinstance(cached, dict) else None
     if normalized == "/v1/project/work_item/states":
         project_id_value = params.get("project_id")
         type_id_value = params.get("work_item_type_id")
         if isinstance(project_id_value, str) and isinstance(type_id_value, str):
             states = workspace_cache.get("work_item_states") or {}
             cached = states.get(state_cache_key(project_id_value, type_id_value))
+            return cached if isinstance(cached, dict) else None
+    if normalized == "/v1/project/work_item/properties":
+        project_id_value = params.get("project_id")
+        type_id_value = params.get("work_item_type_id")
+        if isinstance(project_id_value, str) and isinstance(type_id_value, str):
+            properties = workspace_cache.get("work_item_properties") or {}
+            cached = properties.get(state_cache_key(project_id_value, type_id_value))
+            return cached if isinstance(cached, dict) else None
+    if normalized == "/v1/ship/idea/states":
+        product_id_value = params.get("product_id")
+        if isinstance(product_id_value, str):
+            idea_states = workspace_cache.get("idea_states") or {}
+            cached = idea_states.get(product_id_value)
+            return cached if isinstance(cached, dict) else None
+    if normalized == "/v1/ship/idea/priorities":
+        product_id_value = params.get("product_id")
+        if isinstance(product_id_value, str):
+            idea_priorities = workspace_cache.get("idea_priorities") or {}
+            cached = idea_priorities.get(product_id_value)
             return cached if isinstance(cached, dict) else None
     return None
 
@@ -450,6 +487,11 @@ def update_workspace_cache_for_response(
         if isinstance(project_id_value, str):
             workspace_cache.setdefault("work_item_types", {})[project_id_value] = response
             return True
+    if normalized == "/v1/project/work_item/priorities":
+        project_id_value = params.get("project_id")
+        if isinstance(project_id_value, str):
+            workspace_cache.setdefault("work_item_priorities", {})[project_id_value] = response
+            return True
     if normalized == "/v1/project/work_item/states":
         project_id_value = params.get("project_id")
         type_id_value = params.get("work_item_type_id")
@@ -457,6 +499,24 @@ def update_workspace_cache_for_response(
             workspace_cache.setdefault("work_item_states", {})[
                 state_cache_key(project_id_value, type_id_value)
             ] = response
+            return True
+    if normalized == "/v1/project/work_item/properties":
+        project_id_value = params.get("project_id")
+        type_id_value = params.get("work_item_type_id")
+        if isinstance(project_id_value, str) and isinstance(type_id_value, str):
+            workspace_cache.setdefault("work_item_properties", {})[
+                state_cache_key(project_id_value, type_id_value)
+            ] = response
+            return True
+    if normalized == "/v1/ship/idea/states":
+        product_id_value = params.get("product_id")
+        if isinstance(product_id_value, str):
+            workspace_cache.setdefault("idea_states", {})[product_id_value] = response
+            return True
+    if normalized == "/v1/ship/idea/priorities":
+        product_id_value = params.get("product_id")
+        if isinstance(product_id_value, str):
+            workspace_cache.setdefault("idea_priorities", {})[product_id_value] = response
             return True
     return False
 
@@ -632,6 +692,14 @@ def cache_work_item_types(client: PingCodeClient, project_id: str) -> dict[str, 
     )
 
 
+def cache_work_item_priorities(client: PingCodeClient, project_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/project/work_item/priorities",
+        {"project_id": project_id, "page_size": 100},
+    )
+
+
 def cache_work_item_states(client: PingCodeClient, project_id: str, work_item_type_id: str) -> dict[str, Any]:
     return refresh_command(
         client,
@@ -653,6 +721,45 @@ def cache_all_work_item_states(client: PingCodeClient, project_id: str) -> dict[
         "work_item_types": types_payload,
         "work_item_states": states,
     }
+
+
+def cache_work_item_properties(client: PingCodeClient, project_id: str, work_item_type_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/project/work_item/properties",
+        {"project_id": project_id, "work_item_type_id": work_item_type_id, "page_size": 100},
+    )
+
+
+def cache_all_work_item_properties(client: PingCodeClient, project_id: str) -> dict[str, Any]:
+    types_payload = cache_work_item_types(client, project_id)
+    properties: dict[str, Any] = {}
+    for item in page_values(types_payload):
+        type_id = item.get("id")
+        if not isinstance(type_id, str) or not type_id:
+            continue
+        properties[type_id] = cache_work_item_properties(client, project_id, type_id)
+    return {
+        "project_id": project_id,
+        "work_item_types": types_payload,
+        "work_item_properties": properties,
+    }
+
+
+def cache_idea_states(client: PingCodeClient, product_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/ship/idea/states",
+        {"product_id": product_id, "page_size": 100},
+    )
+
+
+def cache_idea_priorities(client: PingCodeClient, product_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/ship/idea/priorities",
+        {"product_id": product_id, "page_size": 100},
+    )
 
 
 def cache_users(client: PingCodeClient, project_id: str | None = None) -> dict[str, Any]:
@@ -862,7 +969,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-projects", action="store_true", help="Fetch and cache projects")
     parser.add_argument("--cache-sprints", action="store_true", help="Fetch and cache project sprints")
     parser.add_argument("--cache-work-item-types", action="store_true", help="Fetch and cache work item types")
+    parser.add_argument("--cache-work-item-priorities", action="store_true", help="Fetch and cache work item priorities")
+    parser.add_argument("--cache-work-item-properties", action="store_true", help="Fetch and cache work item properties")
     parser.add_argument("--cache-states", action="store_true", help="Fetch and cache work item states")
+    parser.add_argument("--cache-idea-states", action="store_true", help="Fetch and cache product idea states")
+    parser.add_argument("--cache-idea-priorities", action="store_true", help="Fetch and cache product idea priorities")
     parser.add_argument(
         "--context-options",
         choices=("project", "sprint", "user"),
@@ -872,7 +983,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--set-current-project", help="Save current project id in the workspace cache")
     parser.add_argument("--set-current-sprint", help="Save current sprint/iteration id in the workspace cache")
     parser.add_argument("--project-id", help="Project id for cache helper commands")
-    parser.add_argument("--work-item-type-id", help="Work item type id for --cache-states")
+    parser.add_argument("--product-id", help="Product id for product/idea cache helper commands")
+    parser.add_argument("--work-item-type-id", help="Work item type id for state/property cache helper commands")
     parser.add_argument(
         "--all-users",
         action="store_true",
@@ -927,6 +1039,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if not isinstance(project_id, str) or not project_id:
             raise PingCodeError("Provide --project-id or set a cached current project before --cache-work-item-types")
         return cache_work_item_types(client, project_id)
+    if args.cache_work_item_priorities:
+        project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
+        if not isinstance(project_id, str) or not project_id:
+            raise PingCodeError("Provide --project-id or set a cached current project before --cache-work-item-priorities")
+        return cache_work_item_priorities(client, project_id)
+    if args.cache_work_item_properties:
+        project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
+        if not isinstance(project_id, str) or not project_id:
+            raise PingCodeError("Provide --project-id or set a cached current project before --cache-work-item-properties")
+        if not args.work_item_type_id:
+            return cache_all_work_item_properties(client, project_id)
+        return cache_work_item_properties(client, project_id, args.work_item_type_id)
     if args.cache_states:
         project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
@@ -934,6 +1058,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if not args.work_item_type_id:
             return cache_all_work_item_states(client, project_id)
         return cache_work_item_states(client, project_id, args.work_item_type_id)
+    if args.cache_idea_states:
+        if not args.product_id:
+            raise PingCodeError("Provide --product-id before --cache-idea-states")
+        return cache_idea_states(client, args.product_id)
+    if args.cache_idea_priorities:
+        if not args.product_id:
+            raise PingCodeError("Provide --product-id before --cache-idea-priorities")
+        return cache_idea_priorities(client, args.product_id)
     if args.set_current_user:
         return set_current_user(client, args.set_current_user)
     if args.set_current_project:

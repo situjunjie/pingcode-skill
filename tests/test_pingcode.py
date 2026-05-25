@@ -37,6 +37,10 @@ class PingCodeCliTests(unittest.TestCase):
         sprints=None,
         work_item_types=None,
         states=None,
+        work_item_priorities=None,
+        work_item_properties=None,
+        idea_states=None,
+        idea_priorities=None,
     ):
         payload = pingcode.empty_workspace_cache()
         payload["preferences"] = preferences or {}
@@ -50,6 +54,14 @@ class PingCodeCliTests(unittest.TestCase):
             payload["work_item_types"] = work_item_types
         if states is not None:
             payload["work_item_states"] = states
+        if work_item_priorities is not None:
+            payload["work_item_priorities"] = work_item_priorities
+        if work_item_properties is not None:
+            payload["work_item_properties"] = work_item_properties
+        if idea_states is not None:
+            payload["idea_states"] = idea_states
+        if idea_priorities is not None:
+            payload["idea_priorities"] = idea_priorities
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -663,6 +675,159 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(payload["work_item_states"]["project-1::story"]["values"][0]["id"], "story-done")
         self.assertEqual(payload["work_item_states"]["project-1::task"]["values"][0]["id"], "task-done")
         self.assertEqual(urlopen.call_count, 3)
+
+    def test_work_item_priorities_write_and_reuse_workspace_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_item/priorities",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "project_id=project-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "high", "name": "高"}]}),
+            ):
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+            with mock.patch("urllib.request.urlopen") as cached_urlopen:
+                cached_result = pingcode.run(args)
+
+        self.assertEqual(result["values"][0]["id"], "high")
+        self.assertEqual(payload["work_item_priorities"]["project-1"]["values"][0]["name"], "高")
+        self.assertEqual(cached_result["values"][0]["id"], "high")
+        cached_urlopen.assert_not_called()
+
+    def test_work_item_properties_write_and_reuse_workspace_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_item/properties",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "project_id=project-1",
+                    "--param",
+                    "work_item_type_id=story",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "custom-1", "name": "自定义字段"}]}),
+            ):
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+            with mock.patch("urllib.request.urlopen") as cached_urlopen:
+                cached_result = pingcode.run(args)
+
+        self.assertEqual(result["values"][0]["id"], "custom-1")
+        self.assertEqual(payload["work_item_properties"]["project-1::story"]["values"][0]["name"], "自定义字段")
+        self.assertEqual(cached_result["values"][0]["id"], "custom-1")
+        cached_urlopen.assert_not_called()
+
+    def test_cache_work_item_properties_without_type_refreshes_types_and_all_properties(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(cache_path, preferences={"current_project_id": "project-1"})
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--cache-work-item-properties",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                side_effect=[
+                    FakeResponse({"values": [{"id": "story", "name": "故事"}, {"id": "task", "name": "任务"}]}),
+                    FakeResponse({"values": [{"id": "story-field", "name": "故事字段"}]}),
+                    FakeResponse({"values": [{"id": "task-field", "name": "任务字段"}]}),
+                ],
+            ) as urlopen:
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["project_id"], "project-1")
+        self.assertEqual(set(result["work_item_properties"].keys()), {"story", "task"})
+        self.assertEqual(payload["work_item_properties"]["project-1::story"]["values"][0]["id"], "story-field")
+        self.assertEqual(payload["work_item_properties"]["project-1::task"]["values"][0]["id"], "task-field")
+        self.assertEqual(urlopen.call_count, 3)
+
+    def test_idea_states_and_priorities_write_workspace_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            states_args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/ship/idea/states",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "product_id=product-1",
+                ],
+                cache_path,
+            )
+            priorities_args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/ship/idea/priorities",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "product_id=product-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                side_effect=[
+                    FakeResponse({"values": [{"id": "idea-open", "name": "打开"}]}),
+                    FakeResponse({"values": [{"id": "idea-high", "name": "高"}]}),
+                ],
+            ):
+                states_result = pingcode.run(states_args)
+                priorities_result = pingcode.run(priorities_args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+            with mock.patch("urllib.request.urlopen") as cached_urlopen:
+                cached_states = pingcode.run(states_args)
+                cached_priorities = pingcode.run(priorities_args)
+
+        self.assertEqual(states_result["values"][0]["id"], "idea-open")
+        self.assertEqual(priorities_result["values"][0]["id"], "idea-high")
+        self.assertEqual(payload["idea_states"]["product-1"]["values"][0]["name"], "打开")
+        self.assertEqual(payload["idea_priorities"]["product-1"]["values"][0]["name"], "高")
+        self.assertEqual(cached_states["values"][0]["id"], "idea-open")
+        self.assertEqual(cached_priorities["values"][0]["id"], "idea-high")
+        cached_urlopen.assert_not_called()
 
     def test_cache_users_uses_project_members_when_project_id_is_available(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -71,9 +71,10 @@ Questions to answer:
 - CLI credential overrides: `--client-id`, `--client-secret`, `--token`.
 - CLI current-user overrides: `--user-id`, `--user-name`.
 - CLI workspace cache options: `--workspace-cache`, `--no-workspace-cache`, `--no-cache-read`.
-- CLI cache helper commands: `--cache-users`, `--cache-projects`, `--cache-sprints`, `--cache-work-item-types`, `--cache-states`, `--set-current-user`, `--set-current-project`, `--set-current-sprint`.
+- CLI cache helper commands: `--cache-users`, `--cache-projects`, `--cache-sprints`, `--cache-work-item-types`, `--cache-work-item-priorities`, `--cache-work-item-properties`, `--cache-states`, `--cache-idea-states`, `--cache-idea-priorities`, `--set-current-user`, `--set-current-project`, `--set-current-sprint`.
 - CLI agent frontend helper: `--context-options project|sprint|user` prints compact JSON options for chat-based project/sprint/user selection.
 - CLI default-filter opt-outs: `--all-users`, `--all-projects`, `--all-sprints`.
+- Product dictionary cache helpers require `--product-id`.
 - `pingcode-ctx` must interactively select and cache the current user, current project, and current sprint/iteration in the same workspace cache format as `scripts/pingcode.py`.
 - The `$pingcode-ctx` skill must use agent-fronted Q&A by default: list compact options, ask the user for one numbered/id/name choice in chat, then write the selection with `--set-current-*`.
 - Terminal `python3 scripts/pingcode_ctx.py` remains a fallback for users who explicitly want shell interaction.
@@ -91,8 +92,12 @@ Questions to answer:
 - Query another cached user with `@user:<name-or-email>`; refresh user cache only if the cached list cannot resolve the user.
 - Create current-user work items with `assignee_id=@me`.
 - Cache work item types by `project_id` and reuse cached responses before making another type dictionary API call.
+- Cache work item priorities by `project_id` and reuse cached responses before making another priority dictionary API call.
+- Cache work item properties by `(project_id, work_item_type_id)` and reuse cached responses before making another property dictionary API call.
 - Cache states by `(project_id, work_item_type_id)` and reuse cached responses before making another state dictionary API call.
 - `--cache-states --work-item-type-id TYPE_ID` refreshes one type's state dictionary. `--cache-states` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes state dictionaries for every returned type id.
+- `--cache-work-item-properties --work-item-type-id TYPE_ID` refreshes one type's property dictionary. `--cache-work-item-properties` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes property dictionaries for every returned type id.
+- Cache idea states and idea priorities by `product_id`; helper commands must fail clearly when `--product-id` is absent.
 - Default base URL: `https://open.pingcode.com`.
 - Output contract: print JSON to stdout for successful commands; print human-readable errors to stderr and exit non-zero for failures.
 - Credentials, access tokens, token cache contents, and workspace cache contents must never be committed or included in docs examples.
@@ -109,8 +114,8 @@ Questions to answer:
 - Work item create/query with incomplete workspace context -> non-zero exit with `pingcode-ctx` guidance.
 - Work item list query without cached current project and without `--all-projects` -> non-zero exit with `pingcode-ctx` guidance.
 - Work item list query without cached current sprint and without `--all-sprints` -> non-zero exit with `pingcode-ctx` guidance.
-- Cached work item type or state dictionary request -> return cached JSON without opening a network connection.
-- Successful GET for projects, project members/users, sprints, work item types, or work item states -> update workspace cache.
+- Cached work item type, work item priority, work item property, work item state, idea state, or idea priority dictionary request -> return cached JSON without opening a network connection.
+- Successful GET for projects, project members/users, sprints, work item types, work item priorities, work item properties, work item states, idea states, or idea priorities -> update workspace cache.
 - Invalid JSON passed to `--data`, `--properties`, `--plan-at`, or `--real-at` -> non-zero exit before making an HTTP request.
 - `key=value` parameters without `=` or with an empty key -> non-zero exit before making an HTTP request.
 - PingCode HTTP 429 -> include retry-after information when present.
@@ -141,6 +146,7 @@ Questions to answer:
 - Unit tests must cover manual cache helper commands (`--cache-projects`, `--cache-sprints`, `--set-current-project`, `--set-current-sprint`) separately from routine work item operations.
 - Unit tests must cover dictionary cache reads without network and cache writes after successful list/dictionary responses.
 - Unit tests must cover project-scoped work item type caching and `--cache-states` refreshing states for every cached type when no single `--work-item-type-id` is supplied.
+- Unit tests must cover work item priority caching, work item property caching and batched property refresh, and product-scoped idea state/priority caching.
 - Unit tests must cover auth/token behavior without live network calls.
 - Tests must not depend on a real PingCode tenant.
 

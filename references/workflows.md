@@ -88,6 +88,8 @@ python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
 python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states
+python3 scripts/pingcode.py --cache-work-item-priorities
+python3 scripts/pingcode.py --cache-work-item-properties
 ```
 
 If a work item query or create command needs current user/project/sprint defaults and the workspace cache is incomplete, run `python3 scripts/pingcode_ctx.py` before retrying. Use manual cache commands only when an interactive terminal is unavailable.
@@ -181,7 +183,7 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
    ```
 
-3. Resolve optional state, priority, sprint, board, entry, and assignee IDs.
+3. Resolve optional state, priority, sprint, board, entry, and assignee IDs. Use `--cache-work-item-priorities` for priority dictionaries and `--cache-work-item-properties` for custom field dictionaries.
 4. Execute:
 
    ```bash
@@ -198,7 +200,7 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    python3 scripts/pingcode.py --method GET --path /v1/ship/products --param keywords="Product name"
    ```
 
-2. Resolve optional suites, states, priorities, and assignee IDs.
+2. Resolve optional suites, states, priorities, and assignee IDs. Use `--cache-idea-states --product-id PRODUCT_ID` and `--cache-idea-priorities --product-id PRODUCT_ID` before setting idea state or priority IDs.
 3. Execute:
 
    ```bash
