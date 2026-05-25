@@ -2,6 +2,24 @@
 
 用于让 Codex、Claude 等 AI agent 通过 PingCode 官方 REST API 操作项目管理和产品管理数据的 skill。
 
+## 复制给 AI Agent 的安装提示词
+
+把下面这段提示词复制给你的 AI Agent，让它在你的本机环境里完成安装：
+
+```text
+请帮我安装 PingCode skill，让当前 AI Agent 可以通过 PingCode 官方 REST API 查询和操作项目/产品数据。
+
+安装要求：
+1. 如果我是 Codex 用户，请运行：npx pingcode-skill@latest --force
+2. 如果我是 Claude Code 用户，请安装到个人 skills 目录：npx pingcode-skill@latest --target "$HOME/.claude/skills/pingcode" --force
+3. 如果你无法判断当前 Agent 类型，请先询问我是 Codex 还是 Claude Code，再选择对应命令。
+4. 安装后请检查 skill 入口文件是否存在：
+   - Codex: ~/.codex/skills/pingcode/SKILL.md
+   - Claude Code: ~/.claude/skills/pingcode/SKILL.md
+5. 安装完成后，引导我配置环境变量 PINGCODE_CLIENT_ID 和 PINGCODE_CLIENT_SECRET；不要把 secret 写入仓库文件，也不要在对话里回显完整 secret。
+6. 如果我还需要默认查询“我的任务”，请继续引导我配置 PINGCODE_USER_NAME 或 PINGCODE_USER_ID。
+```
+
 ## 能力范围
 
 - 使用 `client_credentials` 获取 PingCode 企业令牌
@@ -63,7 +81,7 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 用户列表或项目成员列表
 - 工作项状态字典
 
-首次在一个工作区使用时建议按下面顺序初始化：
+首次在一个工作区使用时可以按下面顺序显式初始化：
 
 ```bash
 python3 scripts/pingcode.py --cache-projects
@@ -74,6 +92,8 @@ python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
 ```
+
+如果查询工作项时缺少当前项目或当前迭代，CLI 会自动拉取并缓存项目/迭代列表，输出可选择的 JSON 选项和对应的 `--set-current-project` / `--set-current-sprint` 命令，然后以非零状态退出。agent 应把这些选项给用户选择，缓存用户选择后再重试原查询。
 
 如果租户没有全局用户列表接口，`--cache-users --project-id PROJECT_ID` 会缓存项目成员。之后查询“某某的工作项”时可以直接使用缓存：
 
@@ -145,29 +165,6 @@ export PINGCODE_USER_ID="你的 PingCode 用户 ID"
 
 ```bash
 npx pingcode-skill@latest --force
-```
-
-## 发布到 npm
-
-发布前检查：
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 /Users/situjunjie/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
-npm pack --dry-run
-```
-
-登录并发布：
-
-```bash
-npm login
-npm publish --access public
-```
-
-如果包名 `pingcode-skill` 已被占用，把 [package.json](package.json) 的 `name` 改成 scoped 包名，例如 `@your-scope/pingcode-skill`。用户安装命令也相应变为：
-
-```bash
-npx @your-scope/pingcode-skill
 ```
 
 ## CLI 入口
