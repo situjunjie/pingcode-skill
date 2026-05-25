@@ -6,13 +6,13 @@
 
 已发布到 npm：`pingcode-skill@latest`。
 
-一条命令同时安装到 Codex / Claude Code / OpenClaw / Hermes：
+一条命令会检测当前用户已存在的 Codex / Claude Code / OpenClaw / Hermes 目录，并只安装到这些已有 Agent：
 
 ```bash
 npx pingcode-skill@latest
 ```
 
-默认会把 `pingcode` 主 skill 和 `pingcode-ctx` 上下文 skill 一并写入下面四个个人 skill 目录：
+默认会把 `pingcode` 主 skill 和 `pingcode-ctx` 上下文 skill 一并写入已存在 Agent 对应的个人 skill 目录；未安装的 Agent 目录会跳过，不会被自动创建：
 
 ```text
 ~/.codex/skills/pingcode                          (+ pingcode-ctx)
@@ -21,7 +21,7 @@ npx pingcode-skill@latest
 ~/.hermes/skills/project-management/pingcode      (+ pingcode-ctx)
 ```
 
-任何一个目录写入失败（权限、磁盘等问题）不会阻断其他目录，安装结束时会打印每个目录的成功/失败摘要。
+任何一个已选择目录写入失败（权限、磁盘等问题）不会阻断其他目录，安装结束时会打印每个目录的成功/失败/跳过摘要。
 
 如果设置了 `CODEX_HOME`，Codex 目录会变成 `$CODEX_HOME/skills/pingcode`；其他三个目录的位置不受该变量影响。
 
@@ -41,7 +41,7 @@ export PINGCODE_USER_ID="你的 PingCode 用户 ID"
 
 ### 更新
 
-升级到最新版本（覆盖所有四个默认目录）：
+升级到最新版本（覆盖当前用户已存在 Agent 的默认目录）：
 
 ```bash
 npx pingcode-skill@latest --force
@@ -76,7 +76,7 @@ npx pingcode-skill@latest --target "$HOME/.codex/skills/pingcode" --force
 
 安装要求：
 1. 直接运行：npx pingcode-skill@latest --force
-   该命令会一次性把 skill 安装到 Codex、Claude Code、OpenClaw 和 Hermes 的个人 skills 目录。
+   该命令会检测当前用户已存在的 Codex、Claude Code、OpenClaw 和 Hermes 目录，并只把 skill 安装到这些已有 Agent 的个人 skills 目录。
 2. 安装结束后请检查下列 SKILL.md 入口文件是否存在（按你当前使用的 Agent 选择对应路径即可）：
    - ~/.codex/skills/pingcode/SKILL.md 与 ~/.codex/skills/pingcode-ctx/SKILL.md
    - ~/.claude/skills/pingcode/SKILL.md 与 ~/.claude/skills/pingcode-ctx/SKILL.md

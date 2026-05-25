@@ -107,6 +107,15 @@ class InstallerMultiRootTests(unittest.TestCase):
             },
         }
 
+    def _create_agent_homes(self, home, codex_home=None, keys=None):
+        paths = self._expected_paths(home, codex_home=codex_home)
+        selected = keys or paths.keys()
+        for key in selected:
+            if key == "hermes":
+                (home / ".hermes").mkdir(parents=True, exist_ok=True)
+            else:
+                paths[key]["main"].parents[1].mkdir(parents=True, exist_ok=True)
+
     def _assert_installed(self, target):
         self.assertTrue((target / "SKILL.md").is_file(), f"SKILL.md missing in {target}")
         skill_doc = (target / "SKILL.md").read_text(encoding="utf-8")
@@ -120,11 +129,12 @@ class InstallerMultiRootTests(unittest.TestCase):
     def _assert_not_installed(self, target):
         self.assertFalse(target.exists(), f"unexpected install at {target}")
 
-    def test_default_install_writes_all_four_roots(self):
+    def test_default_install_writes_existing_agent_roots(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir) / "home"
             home.mkdir()
             env = _isolated_home_env(home)
+            self._create_agent_homes(home)
             result = _run_install([], env=env)
             self.assertEqual(result.returncode, 0, msg=result.stderr)
 
@@ -139,6 +149,40 @@ class InstallerMultiRootTests(unittest.TestCase):
 
             for label in ("Codex", "Claude Code", "OpenClaw", "Hermes"):
                 self.assertIn(label, result.stdout)
+
+    def test_default_install_skips_missing_agent_roots(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir) / "home"
+            home.mkdir()
+            env = _isolated_home_env(home)
+            self._create_agent_homes(home, keys=("codex", "claude"))
+            result = _run_install([], env=env)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+            paths = self._expected_paths(home)
+            self._assert_installed(paths["codex"]["main"])
+            self.assertTrue(paths["codex"]["alias"].is_dir())
+            self._assert_installed(paths["claude"]["main"])
+            self.assertTrue(paths["claude"]["alias"].is_dir())
+            for key in ("openclaw", "hermes"):
+                self._assert_not_installed(paths[key]["main"])
+                self._assert_not_installed(paths[key]["alias"])
+
+            self.assertIn("[skip] OpenClaw", result.stdout)
+            self.assertIn("[skip] Hermes", result.stdout)
+
+    def test_default_install_no_existing_agent_roots_is_noop(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir) / "home"
+            home.mkdir()
+            env = _isolated_home_env(home)
+            result = _run_install([], env=env)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            paths = self._expected_paths(home)
+            for entry in paths.values():
+                self._assert_not_installed(entry["main"])
+                self._assert_not_installed(entry["alias"])
+            self.assertIn("No supported agent directories were found", result.stdout)
 
     def test_codex_only_scope(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -211,6 +255,7 @@ class InstallerMultiRootTests(unittest.TestCase):
             home.mkdir()
             codex_home = Path(tmpdir) / "custom-codex"
             env = _isolated_home_env(home, codex_home=codex_home)
+            self._create_agent_homes(home, codex_home=codex_home)
             result = _run_install([], env=env)
             self.assertEqual(result.returncode, 0, msg=result.stderr)
 
@@ -234,6 +279,7 @@ class InstallerMultiRootTests(unittest.TestCase):
             # claude install fails while the others still run.
             claude_skills_root = home / ".claude" / "skills"
             claude_skills_root.mkdir(parents=True)
+            self._create_agent_homes(home, keys=("codex", "openclaw", "hermes"))
             os.chmod(claude_skills_root, 0o500)
             env = _isolated_home_env(home)
             try:

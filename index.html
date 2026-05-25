@@ -541,7 +541,7 @@
     <main id="top">
       <section class="shell hero" aria-labelledby="hero-title">
         <div>
-          <p class="eyebrow">一条命令为 Codex / Claude Code / OpenClaw / Hermes 安装 PingCode skill</p>
+          <p class="eyebrow">一条命令检测并安装到当前用户已有的 Agent</p>
           <h1 id="hero-title">让 AI Agent 直接接入 PingCode 工作流</h1>
           <p class="lead">
             通过 PingCode 官方 REST API 查询项目、迭代、工作项和产品需求，让 Agent
@@ -554,7 +554,7 @@
           </div>
 
           <div class="meta" aria-label="兼容性">
-            <span>一条命令同时安装到 Codex / Claude Code / OpenClaw / Hermes</span>
+            <span>只安装到已存在的 Codex / Claude Code / OpenClaw / Hermes 目录</span>
             <span>Node.js 18+</span>
           </div>
         </div>
@@ -565,7 +565,7 @@
               <span class="line"><span class="prompt">$</span> npx pingcode-skill@latest</span>
               <span class="line dim">[ok] Codex:    ~/.codex/skills/pingcode</span>
               <span class="line dim">[ok] Claude:   ~/.claude/skills/pingcode</span>
-              <span class="line dim">[ok] Hermes:   ~/.hermes/skills/project-management/pingcode</span>
+              <span class="line dim">[skip] Hermes: ~/.hermes does not exist</span>
               <span class="line">&nbsp;</span>
               <span class="line"><span class="prompt">$</span> 使用 $pingcode 查看我当前没完成的任务</span>
               <span class="line">{</span>
@@ -652,7 +652,7 @@
         <div class="steps">
           <div class="step">
             <strong>安装到 Agent</strong>
-            <p>一条 <code>npx pingcode-skill@latest</code> 同时安装到 Codex、Claude Code、OpenClaw 和 Hermes 的个人 skills 目录。</p>
+            <p>一条 <code>npx pingcode-skill@latest</code> 检测当前用户已有 Agent，只安装到对应个人 skills 目录。</p>
           </div>
           <div class="step">
             <strong>配置 PingCode 凭证</strong>

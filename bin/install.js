@@ -27,18 +27,22 @@ function defaultAgentRoots() {
   return {
     codex: {
       label: "Codex",
+      agentHome: codexHome,
       skillsRoot: path.join(codexHome, "skills"),
     },
     claude: {
       label: "Claude Code",
+      agentHome: path.join(home, ".claude"),
       skillsRoot: path.join(home, ".claude", "skills"),
     },
     openclaw: {
       label: "OpenClaw",
+      agentHome: path.join(home, ".openclaw"),
       skillsRoot: path.join(home, ".openclaw", "skills"),
     },
     hermes: {
       label: "Hermes",
+      agentHome: path.join(home, ".hermes"),
       skillsRoot: path.join(home, ".hermes", "skills", "project-management"),
     },
   };
@@ -50,7 +54,7 @@ function usage() {
     "                          [--codex-only|--claude-only|--openclaw-only|--hermes-only]",
     "",
     "Default behavior installs the PingCode skill and pingcode-ctx alias",
-    "into every supported agent's user-level skill home in one shot:",
+    "only into supported agent homes that already exist for the current user:",
     "  Codex:     ~/.codex/skills/pingcode (and pingcode-ctx)",
     "  Claude:    ~/.claude/skills/pingcode (and pingcode-ctx)",
     "  OpenClaw:  ~/.openclaw/skills/pingcode (and pingcode-ctx)",
@@ -207,11 +211,18 @@ function printCredentialGuidance() {
   console.log('  export PINGCODE_USER_NAME="..."');
 }
 
+function existingAgentKeys(roots) {
+  return AGENT_KEYS.filter((key) => fs.existsSync(roots[key].agentHome));
+}
+
 function runMultiRootInstall(options) {
   const roots = defaultAgentRoots();
-  const keys = options.only ? [options.only] : AGENT_KEYS;
+  const keys = options.only ? [options.only] : existingAgentKeys(roots);
   const successes = [];
   const failures = [];
+  const skipped = options.only
+    ? []
+    : AGENT_KEYS.filter((key) => !keys.includes(key)).map((key) => roots[key]);
 
   for (const key of keys) {
     const root = roots[key];
@@ -239,6 +250,9 @@ function runMultiRootInstall(options) {
     console.log(`  [ok]   ${item.label}: ${item.mainTarget}`);
     console.log(`         ${item.label} (pingcode-ctx): ${item.aliasTarget}`);
   }
+  for (const item of skipped) {
+    console.log(`  [skip] ${item.label}: ${item.agentHome} does not exist`);
+  }
   for (const item of failures) {
     console.error(`  [fail] ${item.label}: ${item.target}`);
     console.error(`         ${item.message}`);
@@ -248,6 +262,12 @@ function runMultiRootInstall(options) {
     printCredentialGuidance();
   }
 
+  if (keys.length === 0) {
+    console.log("");
+    console.log("No supported agent directories were found for the current user.");
+    console.log("Create an agent home first, or use --target DIR to install to a custom location.");
+    return 0;
+  }
   if (failures.length === 0) {
     return 0;
   }

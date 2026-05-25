@@ -158,6 +158,7 @@ class PingCodeCliTests(unittest.TestCase):
                 "--data",
                 '{"project_id":"project-1","type_id":"story","title":"New story"}',
                 "--dry-run",
+                "--no-workspace-cache",
             ]
         )
 
@@ -296,6 +297,7 @@ class PingCodeCliTests(unittest.TestCase):
                 "--param",
                 "assignee_ids=@me",
                 "--dry-run",
+                "--no-workspace-cache",
             ]
         )
 

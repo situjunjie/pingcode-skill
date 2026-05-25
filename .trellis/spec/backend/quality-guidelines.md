@@ -210,8 +210,8 @@ python3 scripts/pingcode.py --set-current-user USER_ID
 
 ### 2. Signatures
 
-- User install command: `npx pingcode-skill` (default = multi-root install).
-- Default targets (all installed in one run unless scoped by a flag):
+- User install command: `npx pingcode-skill` (default = install to detected existing agent homes).
+- Default candidate targets (installed in one run only when the corresponding agent home already exists, unless scoped by a flag):
   - Codex: `$CODEX_HOME/skills/pingcode` when `CODEX_HOME` is set, otherwise `~/.codex/skills/pingcode`. Only this root honors an environment override.
   - Claude Code: `~/.claude/skills/pingcode`.
   - OpenClaw: `~/.openclaw/skills/pingcode`.
@@ -237,7 +237,9 @@ python3 scripts/pingcode.py --set-current-user USER_ID
 - Per-root alias install: `installAliasSkill` runs once per installed root and places `pingcode-ctx` as a sibling of `pingcode` in the same skills root. For Hermes, the alias also lives under the `project-management/` category — so the layout is `~/.hermes/skills/project-management/pingcode-ctx`.
 - The installer must rewrite installed docs (`SKILL.md`, `README.md`, `references/workflows.md`) from `python3 scripts/pingcode.py` to the absolute installed script command. This lets Codex reuse sandbox/network approval prefixes for the stable installed CLI path instead of repeatedly approving relative repository commands.
 - The source docs may keep `python3 scripts/pingcode.py` examples for repository development; only installed docs should be rewritten.
-- Per-root failure isolation: each root is wrapped in try/catch. A failure on one root must NOT abort the others. Successes print `[ok] <agent>: <path>` to stdout; failures print `[fail] <agent>: <error>` to stderr. The final summary must list every attempted root.
+- Default detection must check the agent home directory, not the final `skills` directory: Codex checks `$CODEX_HOME` or `~/.codex`, Claude Code checks `~/.claude`, OpenClaw checks `~/.openclaw`, and Hermes checks `~/.hermes`. Missing agent homes are skipped and must not be created by the default multi-root flow.
+- The `--codex-only` / `--claude-only` / `--openclaw-only` / `--hermes-only` flags are explicit user choices and may create their selected root even if that agent home does not already exist.
+- Per-root failure isolation: each selected existing root is wrapped in try/catch. A failure on one root must NOT abort the others. Successes print `[ok] <agent>: <path>` to stdout; skipped missing agent homes print `[skip] <agent>: <agentHome>` to stdout; failures print `[fail] <agent>: <error>` to stderr. The final summary must list every attempted root and skipped candidate.
 - The single-target flow (`--target <dir>` or any single `--*-only` flag) preserves the legacy single-line `Installed PingCode skill to <path>` output that existing tests depend on.
 
 ### 4. Validation & Error Matrix
@@ -249,11 +251,12 @@ python3 scripts/pingcode.py --set-current-user USER_ID
 - Partial success (≥1 root succeeds, ≥1 root fails) -> exit code 2.
 - No root succeeds, or unrecoverable arg parse error -> exit code 1.
 - `CODEX_HOME` set -> only the codex default root retargets to `$CODEX_HOME/skills/pingcode`. Claude Code, OpenClaw and Hermes roots remain at their fixed `~/.<agent>/...` paths.
-- `--help` / `-h` -> print usage including all four default roots, per-agent flags, and `CODEX_HOME` note; exit 0.
+- No supported agent home exists during default install -> no filesystem writes, exit 0, and print guidance to create an agent home or use `--target DIR`.
+- `--help` / `-h` -> print usage including all four candidate roots, detection behavior, per-agent flags, and `CODEX_HOME` note; exit 0.
 
 ### 5. Good/Base/Bad Cases
 
-- Good: `npx pingcode-skill@latest` writes both `pingcode` and `pingcode-ctx` to all four agent roots; Hermes lands under `project-management/`; each root's `SKILL.md` references its own absolute scripts path.
+- Good: `npx pingcode-skill@latest` writes both `pingcode` and `pingcode-ctx` only to supported agent homes that already exist for the current user; Hermes lands under `project-management/`; each installed root's `SKILL.md` references its own absolute scripts path.
 - Good: `npx pingcode-skill@latest --claude-only --force` overwrites only `~/.claude/skills/pingcode` and the sibling `pingcode-ctx`.
 - Good: `npx pingcode-skill@latest --target ".claude/skills/pingcode"` installs into the project-local Claude skills directory and prints the legacy single-target message.
 - Base: One root fails with a permission error; other three install cleanly; exit code is 2 and the summary lists the failed root with its error.
@@ -262,7 +265,8 @@ python3 scripts/pingcode.py --set-current-user USER_ID
 ### 6. Tests Required
 
 - `tests/test_install.py` must cover:
-  - Default invocation creates `pingcode` + `pingcode-ctx` under all four roots, with rewritten absolute paths in each root's `SKILL.md`.
+  - Default invocation creates `pingcode` + `pingcode-ctx` under existing agent homes only, with rewritten absolute paths in each installed root's `SKILL.md`, and skips missing agent homes without creating them.
+  - Default invocation with no existing supported agent homes exits 0 without filesystem writes and prints next-step guidance.
   - Single-target back-compat: `--target <dir>` installs only at the explicit path and emits the legacy single-line output.
   - Each `--*-only` flag installs only into its corresponding root.
   - Per-root failure isolation: making one root unwritable must produce a `[fail]` line for that root, `[ok]` lines for the others, and exit code 2.
