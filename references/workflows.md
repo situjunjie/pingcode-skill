@@ -87,7 +87,7 @@ python3 scripts/pingcode.py --cache-sprints
 python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
 python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
-python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
+python3 scripts/pingcode.py --cache-states
 ```
 
 If a work item query or create command needs current user/project/sprint defaults and the workspace cache is incomplete, run `python3 scripts/pingcode_ctx.py` before retrying. Use manual cache commands only when an interactive terminal is unavailable.
@@ -152,9 +152,10 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 2. Read the work item's `project.id` and `type`.
-3. Fetch available states from cache, or refresh cache if needed:
+3. Fetch available states from cache, or refresh cache if needed. Without `--work-item-type-id`, `--cache-states` first refreshes the current project's work item type dictionary, then caches states for every type:
 
    ```bash
+   python3 scripts/pingcode.py --cache-states --project-id PROJECT_ID
    python3 scripts/pingcode.py --cache-states --project-id PROJECT_ID --work-item-type-id TYPE_ID
    python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
    ```

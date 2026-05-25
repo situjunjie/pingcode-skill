@@ -28,7 +28,16 @@ class PingCodeCliTests(unittest.TestCase):
         parser = pingcode.build_parser()
         return parser.parse_args(["--workspace-cache", str(cache_path), *items])
 
-    def write_workspace_cache(self, cache_path, preferences=None, users=None, projects=None, sprints=None, states=None):
+    def write_workspace_cache(
+        self,
+        cache_path,
+        preferences=None,
+        users=None,
+        projects=None,
+        sprints=None,
+        work_item_types=None,
+        states=None,
+    ):
         payload = pingcode.empty_workspace_cache()
         payload["preferences"] = preferences or {}
         if users is not None:
@@ -37,6 +46,8 @@ class PingCodeCliTests(unittest.TestCase):
             payload["projects"] = {"values": projects}
         if sprints is not None:
             payload["sprints"] = sprints
+        if work_item_types is not None:
+            payload["work_item_types"] = work_item_types
         if states is not None:
             payload["work_item_states"] = states
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -526,6 +537,40 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result, cached_states)
         urlopen.assert_not_called()
 
+    def test_work_item_types_write_and_reuse_workspace_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "GET",
+                    "--path",
+                    "/v1/project/work_item/types",
+                    "--token",
+                    "token-1",
+                    "--param",
+                    "project_id=project-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=FakeResponse({"values": [{"id": "story", "name": "故事"}]}),
+            ) as urlopen:
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+            with mock.patch("urllib.request.urlopen") as cached_urlopen:
+                cached_result = pingcode.run(args)
+
+        self.assertEqual(result["values"][0]["id"], "story")
+        self.assertEqual(payload["work_item_types"]["project-1"]["values"][0]["name"], "故事")
+        self.assertEqual(cached_result["values"][0]["id"], "story")
+        self.assertEqual(urlopen.call_count, 1)
+        cached_urlopen.assert_not_called()
+
     def test_get_states_writes_workspace_cache_after_network_success(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
@@ -586,6 +631,38 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["values"][0]["id"], "new-state")
         self.assertEqual(payload["work_item_states"]["project-1::task"]["values"][0]["id"], "new-state")
         urlopen.assert_called_once()
+
+    def test_cache_states_without_type_refreshes_types_and_all_states(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(cache_path, preferences={"current_project_id": "project-1"})
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--cache-states",
+                    "--token",
+                    "token-1",
+                ],
+                cache_path,
+            )
+
+            with mock.patch(
+                "urllib.request.urlopen",
+                side_effect=[
+                    FakeResponse({"values": [{"id": "story", "name": "故事"}, {"id": "task", "name": "任务"}]}),
+                    FakeResponse({"values": [{"id": "story-done", "name": "已完成"}]}),
+                    FakeResponse({"values": [{"id": "task-done", "name": "已完成"}]}),
+                ],
+            ) as urlopen:
+                result = pingcode.run(args)
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["project_id"], "project-1")
+        self.assertEqual(set(result["work_item_states"].keys()), {"story", "task"})
+        self.assertEqual(payload["work_item_types"]["project-1"]["values"][0]["id"], "story")
+        self.assertEqual(payload["work_item_states"]["project-1::story"]["values"][0]["id"], "story-done")
+        self.assertEqual(payload["work_item_states"]["project-1::task"]["values"][0]["id"], "task-done")
+        self.assertEqual(urlopen.call_count, 3)
 
     def test_cache_users_uses_project_members_when_project_id_is_available(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -154,6 +154,7 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 当前项目 ID / 名称
 - 当前迭代 ID / 名称
 - 用户列表或项目成员列表
+- 工作项类型字典
 - 工作项状态字典
 
 首次写入默认缓存时，如果当前项目已有 `.gitignore`，CLI 会自动确保 `.pingcode-skill/` 已加入忽略列表。
@@ -206,7 +207,7 @@ python3 scripts/pingcode.py --cache-sprints
 python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
 python3 scripts/pingcode.py --cache-users
 python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
-python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
+python3 scripts/pingcode.py --cache-states
 ```
 
 如果查询或创建工作项时工作区上下文不完整，CLI 会提示先运行 `pingcode-ctx`。agent 应先完成交互式上下文初始化，再重试原查询或创建命令。没有交互终端时，才使用下面的 `--cache-*` / `--set-current-*` 命令手动初始化。
@@ -229,7 +230,7 @@ python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param a
 - “未完成”：查询工作项后，由模型把 `state.type` 为 `pending`、`in_progress` 的项视为未完成，除非用户另有定义。
 - “未解决缺陷”：调用 `/v1/project/work_items`，传 `type_ids=bug` 和负责人过滤，例如 `--param assignee_ids=@me`，再按状态过滤未完成项。
 - “在某故事下新增工作项”：先调用 `/v1/project/work_items` 按编号或关键词找到父故事，再调用 `POST /v1/project/work_items` 并传 `parent_id`。
-- 状态更新：优先用缓存状态字典；没有缓存或怀疑过期时运行 `--cache-states`，不要猜 `state_id`。
+- 状态更新：优先用缓存状态字典；没有缓存或怀疑过期时运行 `--cache-states`，它会先缓存当前项目的工作项类型字典，再缓存每个类型的状态；只刷新单个类型时传 `--work-item-type-id TYPE_ID`。不要猜 `state_id`。
 
 ## 参考资料
 

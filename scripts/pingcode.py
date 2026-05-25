@@ -67,6 +67,7 @@ def empty_workspace_cache() -> dict[str, Any]:
         "users": None,
         "projects": None,
         "sprints": {},
+        "work_item_types": {},
         "work_item_states": {},
     }
 
@@ -115,6 +116,8 @@ def load_workspace_cache(cache_path: Path | None) -> dict[str, Any]:
         cache["preferences"] = {}
     if not isinstance(cache.get("sprints"), dict):
         cache["sprints"] = {}
+    if not isinstance(cache.get("work_item_types"), dict):
+        cache["work_item_types"] = {}
     if not isinstance(cache.get("work_item_states"), dict):
         cache["work_item_states"] = {}
     return cache
@@ -399,6 +402,12 @@ def cached_response(
         sprints = workspace_cache.get("sprints") or {}
         cached = sprints.get(project_id)
         return cached if isinstance(cached, dict) else None
+    if normalized == "/v1/project/work_item/types":
+        project_id_value = params.get("project_id")
+        if isinstance(project_id_value, str):
+            work_item_types = workspace_cache.get("work_item_types") or {}
+            cached = work_item_types.get(project_id_value)
+            return cached if isinstance(cached, dict) else None
     if normalized == "/v1/project/work_item/states":
         project_id_value = params.get("project_id")
         type_id_value = params.get("work_item_type_id")
@@ -436,6 +445,11 @@ def update_workspace_cache_for_response(
     if project_id:
         workspace_cache.setdefault("sprints", {})[project_id] = response
         return True
+    if normalized == "/v1/project/work_item/types":
+        project_id_value = params.get("project_id")
+        if isinstance(project_id_value, str):
+            workspace_cache.setdefault("work_item_types", {})[project_id_value] = response
+            return True
     if normalized == "/v1/project/work_item/states":
         project_id_value = params.get("project_id")
         type_id_value = params.get("work_item_type_id")
@@ -608,6 +622,37 @@ def cache_sprints(client: PingCodeClient, project_id: str) -> dict[str, Any]:
         f"/v1/project/projects/{urllib.parse.quote(project_id)}/sprints",
         {"page_size": 100},
     )
+
+
+def cache_work_item_types(client: PingCodeClient, project_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/project/work_item/types",
+        {"project_id": project_id, "page_size": 100},
+    )
+
+
+def cache_work_item_states(client: PingCodeClient, project_id: str, work_item_type_id: str) -> dict[str, Any]:
+    return refresh_command(
+        client,
+        "/v1/project/work_item/states",
+        {"project_id": project_id, "work_item_type_id": work_item_type_id},
+    )
+
+
+def cache_all_work_item_states(client: PingCodeClient, project_id: str) -> dict[str, Any]:
+    types_payload = cache_work_item_types(client, project_id)
+    states: dict[str, Any] = {}
+    for item in page_values(types_payload):
+        type_id = item.get("id")
+        if not isinstance(type_id, str) or not type_id:
+            continue
+        states[type_id] = cache_work_item_states(client, project_id, type_id)
+    return {
+        "project_id": project_id,
+        "work_item_types": types_payload,
+        "work_item_states": states,
+    }
 
 
 def cache_users(client: PingCodeClient, project_id: str | None = None) -> dict[str, Any]:
@@ -816,6 +861,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-users", action="store_true", help="Fetch and cache PingCode users")
     parser.add_argument("--cache-projects", action="store_true", help="Fetch and cache projects")
     parser.add_argument("--cache-sprints", action="store_true", help="Fetch and cache project sprints")
+    parser.add_argument("--cache-work-item-types", action="store_true", help="Fetch and cache work item types")
     parser.add_argument("--cache-states", action="store_true", help="Fetch and cache work item states")
     parser.add_argument(
         "--context-options",
@@ -876,17 +922,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if not isinstance(project_id, str) or not project_id:
             raise PingCodeError("Provide --project-id or set a cached current project before --cache-sprints")
         return cache_sprints(client, project_id)
+    if args.cache_work_item_types:
+        project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
+        if not isinstance(project_id, str) or not project_id:
+            raise PingCodeError("Provide --project-id or set a cached current project before --cache-work-item-types")
+        return cache_work_item_types(client, project_id)
     if args.cache_states:
         project_id = args.project_id or (client.workspace_cache.get("preferences") or {}).get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
             raise PingCodeError("Provide --project-id or set a cached current project before --cache-states")
         if not args.work_item_type_id:
-            raise PingCodeError("Provide --work-item-type-id for --cache-states")
-        return refresh_command(
-            client,
-            "/v1/project/work_item/states",
-            {"project_id": project_id, "work_item_type_id": args.work_item_type_id},
-        )
+            return cache_all_work_item_states(client, project_id)
+        return cache_work_item_states(client, project_id, args.work_item_type_id)
     if args.set_current_user:
         return set_current_user(client, args.set_current_user)
     if args.set_current_project:
