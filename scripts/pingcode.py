@@ -796,7 +796,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Examples: "
             f"{CLI_COMMAND} --method GET --path /v1/project/projects --param page_size=20; "
             f"{CLI_COMMAND} --method POST --path /v1/project/work_items "
-            "--data '{\"project_id\":\"...\",\"type_id\":\"story\",\"title\":\"...\"}' --dry-run"
+            "--data '{\"project_id\":\"...\",\"type_id\":\"story\",\"title\":\"...\"}'"
         ),
     )
     parser.add_argument("--base-url", default=os.getenv("PINGCODE_BASE_URL", DEFAULT_BASE_URL))

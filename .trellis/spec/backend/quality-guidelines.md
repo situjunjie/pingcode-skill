@@ -62,7 +62,7 @@ Questions to answer:
 - Main entry point: `python3 scripts/pingcode.py --method METHOD --path PATH [options]`.
 - Interactive context entry point: `python3 scripts/pingcode_ctx.py [options]` and npm bin `pingcode-ctx`.
 - Skill invocation docs must point agents to `scripts/pingcode.py --help`.
-- Write examples must include `--dry-run`.
+- Write examples should execute directly once target IDs and payload fields are unambiguous. `--dry-run` remains available for manual previews of high-risk writes but is not the default agent workflow.
 
 ### 3. Contracts
 
@@ -116,7 +116,7 @@ Questions to answer:
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Resolve IDs with list commands, run write command with `--dry-run`, then execute after confirming target IDs.
+- Good: Resolve IDs with list commands, then execute write commands directly after target IDs and payload fields are unambiguous.
 - Good: Run `pingcode-ctx` once per workspace before routine work item operations so current user/project/sprint defaults are cached.
 - Good: In an agent frontend, invoke `$pingcode-ctx`, present one numbered choice list at a time, and use `--set-current-*` after each user answer.
 - Good: Initialize `.pingcode-skill/cache.json` with current user/project/sprint and state dictionaries before routine work item queries.
@@ -155,7 +155,7 @@ python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WI --da
 
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
-python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WI --data '{"state_id":"STATE_ID"}' --dry-run
+python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WI --data '{"state_id":"STATE_ID"}'
 ```
 
 #### Wrong

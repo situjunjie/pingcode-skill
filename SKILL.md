@@ -96,11 +96,11 @@ python3 scripts/pingcode.py --method GET --path /v1/project/projects --param pag
 python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"New story","assignee_id":"@me"}' --dry-run
-python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"New task","assignee_id":"@me"}' --dry-run
-python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"New story","assignee_id":"@me"}'
+python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"New task","assignee_id":"@me"}'
+python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}'
 python3 scripts/pingcode.py --method GET --path /v1/ship/products --param page_size=20
-python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"New idea"}' --dry-run
+python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"New idea"}'
 ```
 
 All output is JSON by default so agents can parse it reliably.
@@ -109,8 +109,8 @@ All output is JSON by default so agents can parse it reliably.
 
 1. Read [`references/workflows.md`](references/workflows.md) before mutating PingCode data.
 2. Resolve names to IDs using list commands. PingCode write APIs usually require IDs.
-3. Run write commands with `--dry-run` first and inspect the JSON body.
-4. Run the same command without `--dry-run` only after the target project/product/work item and state IDs are unambiguous.
+3. Execute write commands directly once the target project/product/work item and state IDs are unambiguous.
+4. Use `--dry-run` only when the target or payload is unusually risky and the user wants a manual preview.
 5. For any endpoint, use the single `scripts/pingcode.py --method/--path` command and consult [`references/api.md`](references/api.md).
 
 ## Safety Rules

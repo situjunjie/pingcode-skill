@@ -135,13 +135,13 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 2. Read `id`, `project.id`, and choose child `type_id`.
-3. Dry run:
+3. Execute after the parent story is unambiguous:
 
    ```bash
-   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"Child task","assignee_id":"@me"}' --dry-run
+   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"task","parent_id":"STORY_ID","title":"Child task","assignee_id":"@me"}'
    ```
 
-4. Execute only after the parent story is unambiguous. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
+4. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
 
 ## Update a Work Item Status
 
@@ -160,13 +160,11 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 4. Choose the exact `state_id`.
-5. Dry run the patch:
+5. Execute after target item and state are unambiguous:
 
    ```bash
-   python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}' --dry-run
+   python3 scripts/pingcode.py --method PATCH --path /v1/project/work_items/WORK_ITEM_ID --data '{"state_id":"STATE_ID"}'
    ```
-
-6. Execute only after target item and state are unambiguous.
 
 ## Create a Work Item or Story
 
@@ -183,13 +181,13 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 3. Resolve optional state, priority, sprint, board, entry, and assignee IDs.
-4. Dry run:
+4. Execute:
 
    ```bash
-   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"Title","assignee_id":"@me"}' --dry-run
+   python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"Title","assignee_id":"@me"}'
    ```
 
-5. Execute without `--dry-run`. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
+5. Omit `assignee_id` only when the user explicitly asks for "所有人" / unassigned behavior or names a different assignee.
 
 ## Create a Product Idea
 
@@ -200,13 +198,11 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
    ```
 
 2. Resolve optional suites, states, priorities, and assignee IDs.
-3. Dry run:
+3. Execute:
 
    ```bash
-   python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"Idea title"}' --dry-run
+   python3 scripts/pingcode.py --method POST --path /v1/ship/ideas --data '{"product_id":"PRODUCT_ID","title":"Idea title"}'
    ```
-
-4. Execute without `--dry-run`.
 
 ## Use an Unwrapped Endpoint
 
@@ -214,7 +210,7 @@ Call any supported PingCode REST endpoint with the single CLI command:
 
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20
-python3 scripts/pingcode.py --method PATCH --path /v1/project/projects/PROJECT_ID --data '{"description":"Updated"}' --dry-run
+python3 scripts/pingcode.py --method PATCH --path /v1/project/projects/PROJECT_ID --data '{"description":"Updated"}'
 ```
 
-For write operations, always run `--dry-run` first.
+For write operations, execute directly after IDs and payload fields are clear. `--dry-run` remains available when the user asks to preview a high-risk payload before sending it.
