@@ -40,7 +40,7 @@ export PINGCODE_USER_ID="your PingCode user id"
 
 You may also pass one-off values with `--client-id`, `--client-secret`, `--user-id`, `--user-name`, and `--workspace-cache` when invoking `scripts/pingcode.py`. Prefer environment variables or a local shell profile for repeated use; prefer a password manager / secret manager that injects environment variables for shared machines or CI. Do not write credentials into tracked files, prompts, or skill docs.
 
-`client_credentials` returns an enterprise token with broad permissions and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人", "all users", or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, CLI flags, or the workspace cache; if missing, ask the user to choose their PingCode user after caching users. The CLI supports `@me` for the current user id, `@me_name` for the current user name, and `@user:<name-or-email>` for cached user lookup; it will print setup guidance if the matching value is absent.
+`client_credentials` returns an enterprise token with broad permissions and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人", "all users", or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, CLI flags, or the workspace cache; if missing, ask the user to choose their PingCode user after caching users. The CLI supports `@me` for the current user id, `@me_name` for the current user name, and `@user:<name-or-id>` for cached user lookup; it will print setup guidance if the matching value is absent.
 
 ## Workspace Cache
 

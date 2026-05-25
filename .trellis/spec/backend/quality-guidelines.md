@@ -80,7 +80,7 @@ Questions to answer:
 - Terminal `python3 scripts/pingcode_ctx.py` remains a fallback for users who explicitly want shell interaction.
 - Default workspace cache path: `.pingcode-skill/cache.json`; this runtime artifact must remain ignored by git.
 - When writing the default `.pingcode-skill/cache.json` workspace cache and the current project has a `.gitignore`, the Python CLI must automatically ensure `.pingcode-skill/` is listed there. Prefer this deterministic script behavior over asking the agent/model to remember and edit `.gitignore` manually.
-- Project member API responses may wrap the actual user under `user`; display, lookup, selection-option, and current-user caching code must normalize those wrappers before reading `id`, `display_name`, `name`, or `email`.
+- Project member API responses may wrap the actual user under `user`; display, lookup, selection-option, and current-user caching code must normalize those wrappers before reading `id`, `display_name`, or `name`.
 - `client_credentials` tokens are enterprise tokens and must not be treated as a specific human user.
 - Work item create/query workflows default to the configured current user unless the user explicitly asks for "所有人" / all users or names another assignee.
 - Current-user identity comes from `--user-id`, `PINGCODE_USER_ID`, or cached `preferences.current_user_id`; if absent, ask the user to cache/select their PingCode identity.
@@ -89,7 +89,7 @@ Questions to answer:
 - Query work items default to current user, current project, and current sprint/iteration when cached; explicit query params override cached defaults.
 - Work item list queries that need current user/project/sprint defaults but lack any cached preference must exit non-zero with `pingcode-ctx` guidance so agents complete the full context before retrying.
 - Use `--all-users`, `--all-projects`, or `--all-sprints` only when the user explicitly asks for all users/projects/iterations.
-- Query another cached user with `@user:<name-or-email>`; refresh user cache only if the cached list cannot resolve the user.
+- Query another cached user with `@user:<name-or-id>`; refresh user cache only if the cached list cannot resolve the user.
 - Create current-user work items with `assignee_id=@me`.
 - Cache work item types by `project_id` and reuse cached responses before making another type dictionary API call.
 - Cache work item priorities by `project_id` and reuse cached responses before making another priority dictionary API call.
@@ -98,7 +98,7 @@ Questions to answer:
 - `--cache-states --work-item-type-id TYPE_ID` refreshes one type's state dictionary. `--cache-states` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes state dictionaries for every returned type id.
 - `--cache-work-item-properties --work-item-type-id TYPE_ID` refreshes one type's property dictionary. `--cache-work-item-properties` without `--work-item-type-id` refreshes the current or explicit project's work item type dictionary first, then refreshes property dictionaries for every returned type id.
 - Cache idea states and idea priorities by `product_id`; helper commands must fail clearly when `--product-id` is absent.
-- Workspace cache stores compact dictionary data for agent lookup, not raw API responses. Drop fields that do not help resolve IDs or choose options, including `url`, `color`, avatars, creator/updater objects, visibility flags, and timestamps. Keep lookup fields such as `id`, `name`, `display_name`, `email`, `identifier`, `type`, `group`, nested `user`, and property `options`.
+- Workspace cache stores compact dictionary data for agent lookup, not raw API responses. Drop fields that do not help resolve IDs or choose options, including `url`, `color`, avatars, email, creator/updater objects, visibility flags, and timestamps. Keep lookup fields such as `id`, `name`, `display_name`, `identifier`, `type`, `group`, nested `user`, and property `options`.
 - Default base URL: `https://open.pingcode.com`.
 - Output contract: print JSON to stdout for successful commands; print human-readable errors to stderr and exit non-zero for failures.
 - Credentials, access tokens, token cache contents, and workspace cache contents must never be committed or included in docs examples.
@@ -110,7 +110,7 @@ Questions to answer:
 - `@me` / `@me_name` identity placeholder with matching `--user-id` / `--user-name` -> expand from CLI args without requiring environment variables.
 - `@user:<name>` without a matching cached user -> non-zero exit with cache refresh guidance.
 - `--context-options sprint` without a cached or explicit project -> non-zero exit asking for `--project-id` or cached current project.
-- Project member wrapper values from `/v1/project/projects/{project_id}/members` -> option output and terminal prompts show nested `user.display_name` / `user.name` / `user.email`, not only the member id.
+- Project member wrapper values from `/v1/project/projects/{project_id}/members` -> option output and terminal prompts show nested `user.display_name` / `user.name`, not only the member id.
 - Saving default workspace cache with an existing `.gitignore` -> `.pingcode-skill/` appears exactly once; missing `.gitignore` or custom cache paths -> no `.gitignore` file is created or modified.
 - Work item create/query with incomplete workspace context -> non-zero exit with `pingcode-ctx` guidance.
 - Work item list query without cached current project and without `--all-projects` -> non-zero exit with `pingcode-ctx` guidance.

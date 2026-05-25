@@ -17,7 +17,7 @@ The CLI accepts identity placeholders:
 
 * `@me` expands to `PINGCODE_USER_ID`.
 * `@me_name` expands to `PINGCODE_USER_NAME`.
-* `@user:<name-or-email>` expands from cached users.
+* `@user:<name-or-id>` expands from cached users.
 * If the required variable is missing, the CLI exits with setup guidance instead of guessing.
 
 ## Workspace Cache Setup

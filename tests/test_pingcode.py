@@ -635,6 +635,7 @@ class PingCodeCliTests(unittest.TestCase):
                         "user": {
                             "id": "user-1",
                             "display_name": "Alice",
+                            "email": "alice@example.test",
                             "avatar": "https://example.test/avatar.png",
                         },
                     }
@@ -661,6 +662,7 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertNotIn("url", cached["work_item_states"]["project-1::story"]["values"][0])
         self.assertEqual(cached["users"]["values"][0]["user"]["display_name"], "Alice")
         self.assertNotIn("avatar", cached["users"]["values"][0]["user"])
+        self.assertNotIn("email", cached["users"]["values"][0]["user"])
         self.assertNotIn("created_by", cached["projects"]["values"][0])
 
     def test_get_states_writes_workspace_cache_after_network_success(self):
@@ -1021,7 +1023,7 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["options"][0]["id"], "user-1")
         self.assertEqual(result["options"][0]["display_name"], "司徒")
         self.assertEqual(result["options"][0]["name"], "situjunjie")
-        self.assertEqual(result["options"][0]["email"], "situ@example.test")
+        self.assertNotIn("email", result["options"][0])
 
     def test_pingcode_ctx_selects_and_caches_workspace_context(self):
         with tempfile.TemporaryDirectory() as tmpdir:

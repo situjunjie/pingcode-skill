@@ -156,6 +156,7 @@ def compact_workspace_cache_value(value: Any) -> Any:
         "created_at",
         "created_by",
         "description",
+        "email",
         "is_archived",
         "is_deleted",
         "members",
@@ -235,7 +236,7 @@ def normalized_entity(item: dict[str, Any]) -> dict[str, Any]:
 def item_names(item: dict[str, Any]) -> list[str]:
     entity = normalized_entity(item)
     names: list[str] = []
-    for key in ("id", "display_name", "name", "email", "identifier"):
+    for key in ("id", "display_name", "name", "identifier"):
         value = entity.get(key)
         if isinstance(value, str) and value:
             names.append(value)
@@ -245,7 +246,7 @@ def item_names(item: dict[str, Any]) -> list[str]:
 def selection_item(item: dict[str, Any]) -> dict[str, Any]:
     entity = normalized_entity(item)
     result: dict[str, Any] = {}
-    for key in ("id", "display_name", "name", "email", "identifier"):
+    for key in ("id", "display_name", "name", "identifier"):
         value = entity.get(key)
         if isinstance(value, str) and value:
             result[key] = value
@@ -856,7 +857,7 @@ def set_current_user(client: PingCodeClient, user_id: str) -> dict[str, Any]:
         entity.get("id") if entity and isinstance(entity.get("id"), str) else user_id
     )
     if found:
-        for key in ("display_name", "name", "email"):
+        for key in ("display_name", "name"):
             value = entity.get(key) if entity else None
             if isinstance(value, str) and value:
                 preferences["current_user_name"] = value
