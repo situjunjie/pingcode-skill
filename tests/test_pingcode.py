@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 from scripts import pingcode
+from scripts import pingcode_ctx
 
 
 class FakeResponse:
@@ -54,6 +55,99 @@ class PingCodeCliTests(unittest.TestCase):
         )
 
     def test_single_command_workitem_create_dry_run_payload(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-1",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "POST",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--data",
+                    '{"project_id":"project-1","type_id":"story","title":"New story"}',
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            with mock.patch.dict("os.environ", {}, clear=True):
+                result = pingcode.run(args)
+
+        self.assertTrue(result["dry_run"])
+        self.assertEqual(result["method"], "POST")
+        self.assertEqual(result["path"], "/v1/project/work_items")
+        self.assertEqual(result["json"]["project_id"], "project-1")
+        self.assertEqual(result["json"]["type_id"], "story")
+        self.assertEqual(result["json"]["assignee_id"], "user-1")
+
+    def test_workitem_create_defaults_assignee_from_cached_current_user(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "POST",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--data",
+                    '{"project_id":"project-1","type_id":"story","title":"New story"}',
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            with mock.patch.dict("os.environ", {}, clear=True):
+                result = pingcode.run(args)
+
+        self.assertEqual(result["json"]["assignee_id"], "user-cached")
+
+    def test_workitem_create_all_users_skips_default_assignee(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "POST",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--all-users",
+                    "--data",
+                    '{"project_id":"project-1","type_id":"story","title":"New story"}',
+                    "--dry-run",
+                ],
+                cache_path,
+            )
+
+            with mock.patch.dict("os.environ", {"PINGCODE_USER_ID": "user-1"}):
+                result = pingcode.run(args)
+
+        self.assertNotIn("assignee_id", result["json"])
+
+    def test_workitem_create_missing_current_user_prints_identity_guidance(self):
         parser = pingcode.build_parser()
         args = parser.parse_args(
             [
@@ -67,13 +161,13 @@ class PingCodeCliTests(unittest.TestCase):
             ]
         )
 
-        result = pingcode.run(args)
+        with mock.patch.dict("os.environ", {}, clear=True):
+            with self.assertRaises(pingcode.PingCodeError) as ctx:
+                pingcode.run(args)
 
-        self.assertTrue(result["dry_run"])
-        self.assertEqual(result["method"], "POST")
-        self.assertEqual(result["path"], "/v1/project/work_items")
-        self.assertEqual(result["json"]["project_id"], "project-1")
-        self.assertEqual(result["json"]["type_id"], "story")
+        self.assertIn("PingCode workspace context is incomplete", str(ctx.exception))
+        self.assertIn("current_user_id", str(ctx.exception))
+        self.assertIn("pingcode_ctx.py", str(ctx.exception))
 
     def test_single_command_maps_params(self):
         parser = pingcode.build_parser()
@@ -102,7 +196,11 @@ class PingCodeCliTests(unittest.TestCase):
             cache_path = Path(tmpdir) / "workspace.json"
             self.write_workspace_cache(
                 cache_path,
-                preferences={"current_project_id": "project-1", "current_sprint_id": "sprint-1"},
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
             )
             args = self.parse_args_with_workspace_cache(
                 [
@@ -125,23 +223,33 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["params"]["sprint_ids"], "sprint-1")
 
     def test_me_placeholder_expands_from_user_id_flag(self):
-        parser = pingcode.build_parser()
-        args = parser.parse_args(
-            [
-                "--method",
-                "POST",
-                "--path",
-                "/v1/project/work_items",
-                "--user-id",
-                "user-flag-1",
-                "--data",
-                '{"project_id":"project-1","type_id":"task","title":"Task","assignee_id":"@me"}',
-                "--dry-run",
-            ]
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            self.write_workspace_cache(
+                cache_path,
+                preferences={
+                    "current_user_id": "user-cached",
+                    "current_project_id": "project-1",
+                    "current_sprint_id": "sprint-1",
+                },
+            )
+            args = self.parse_args_with_workspace_cache(
+                [
+                    "--method",
+                    "POST",
+                    "--path",
+                    "/v1/project/work_items",
+                    "--user-id",
+                    "user-flag-1",
+                    "--data",
+                    '{"project_id":"project-1","type_id":"task","title":"Task","assignee_id":"@me"}',
+                    "--dry-run",
+                ],
+                cache_path,
+            )
 
-        with mock.patch.dict("os.environ", {}, clear=True):
-            result = pingcode.run(args)
+            with mock.patch.dict("os.environ", {}, clear=True):
+                result = pingcode.run(args)
 
         self.assertEqual(result["json"]["assignee_id"], "user-flag-1")
 
@@ -286,7 +394,7 @@ class PingCodeCliTests(unittest.TestCase):
 
         self.assertEqual(result["params"], {"assignee_ids": "user-cached"})
 
-    def test_missing_current_project_fetches_projects_and_returns_selection_guidance(self):
+    def test_missing_current_project_returns_ctx_guidance_without_fetch(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
             self.write_workspace_cache(cache_path, preferences={"current_user_id": "user-cached"})
@@ -302,21 +410,13 @@ class PingCodeCliTests(unittest.TestCase):
                 cache_path,
             )
 
-            with mock.patch(
-                "urllib.request.urlopen",
-                return_value=FakeResponse({"values": [{"id": "project-1", "name": "Core Project"}]}),
-            ) as urlopen:
+            with mock.patch("urllib.request.urlopen") as urlopen:
                 with self.assertRaises(pingcode.PingCodeError) as ctx:
                     pingcode.run(args)
 
-            request = urlopen.call_args.args[0]
-            payload = json.loads(cache_path.read_text(encoding="utf-8"))
-
-        self.assertIn("/v1/project/projects", request.full_url)
-        self.assertEqual(payload["projects"]["values"][0]["id"], "project-1")
-        self.assertIn("Current PingCode project is not cached", str(ctx.exception))
-        self.assertIn("Core Project", str(ctx.exception))
-        self.assertIn("--set-current-project", str(ctx.exception))
+        urlopen.assert_not_called()
+        self.assertIn("PingCode workspace context is incomplete", str(ctx.exception))
+        self.assertIn("pingcode_ctx.py", str(ctx.exception))
 
     def test_missing_current_project_dry_run_does_not_fetch_projects(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -338,9 +438,9 @@ class PingCodeCliTests(unittest.TestCase):
                     pingcode.run(args)
 
         urlopen.assert_not_called()
-        self.assertIn("Workspace defaults are missing", str(ctx.exception))
+        self.assertIn("PingCode workspace context is incomplete", str(ctx.exception))
 
-    def test_missing_current_sprint_fetches_sprints_and_returns_selection_guidance(self):
+    def test_missing_current_sprint_returns_ctx_guidance_without_fetch(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
             self.write_workspace_cache(
@@ -359,21 +459,13 @@ class PingCodeCliTests(unittest.TestCase):
                 cache_path,
             )
 
-            with mock.patch(
-                "urllib.request.urlopen",
-                return_value=FakeResponse({"values": [{"id": "sprint-1", "name": "Sprint 1"}]}),
-            ) as urlopen:
+            with mock.patch("urllib.request.urlopen") as urlopen:
                 with self.assertRaises(pingcode.PingCodeError) as ctx:
                     pingcode.run(args)
 
-            request = urlopen.call_args.args[0]
-            payload = json.loads(cache_path.read_text(encoding="utf-8"))
-
-        self.assertIn("/v1/project/projects/project-1/sprints", request.full_url)
-        self.assertEqual(payload["sprints"]["project-1"]["values"][0]["id"], "sprint-1")
-        self.assertIn("Current PingCode sprint is not cached", str(ctx.exception))
-        self.assertIn("Sprint 1", str(ctx.exception))
-        self.assertIn("--set-current-sprint", str(ctx.exception))
+        urlopen.assert_not_called()
+        self.assertIn("PingCode workspace context is incomplete", str(ctx.exception))
+        self.assertIn("pingcode_ctx.py", str(ctx.exception))
 
     def test_user_name_placeholder_expands_from_cached_users(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -534,6 +626,38 @@ class PingCodeCliTests(unittest.TestCase):
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
 
         self.assertEqual(result["preferences"]["current_user_id"], "user-1")
+        self.assertEqual(payload["preferences"]["current_user_name"], "Situ")
+
+    def test_pingcode_ctx_selects_and_caches_workspace_context(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "workspace.json"
+            args = pingcode_ctx.build_parser().parse_args(
+                [
+                    "--workspace-cache",
+                    str(cache_path),
+                    "--token",
+                    "token-1",
+                ]
+            )
+            responses = [
+                {"values": [{"id": "project-1", "name": "Core Project"}]},
+                {"values": [{"id": "sprint-1", "name": "Sprint 1"}]},
+                {"values": [{"id": "user-1", "name": "Situ", "email": "situ@example.test"}]},
+            ]
+
+            output = io.StringIO()
+            with mock.patch("urllib.request.urlopen", side_effect=[FakeResponse(item) for item in responses]):
+                selections = iter(["1", "1", "1"])
+                with mock.patch("sys.stdout", output):
+                    result = pingcode_ctx.run(args, input_func=lambda _prompt: next(selections))
+
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["preferences"]["current_project_id"], "project-1")
+        self.assertEqual(result["preferences"]["current_sprint_id"], "sprint-1")
+        self.assertEqual(result["preferences"]["current_user_id"], "user-1")
+        self.assertEqual(payload["preferences"]["current_project_name"], "Core Project")
+        self.assertEqual(payload["preferences"]["current_sprint_name"], "Sprint 1")
         self.assertEqual(payload["preferences"]["current_user_name"], "Situ")
 
     def test_main_prints_help(self):

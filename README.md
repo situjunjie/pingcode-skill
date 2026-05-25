@@ -145,6 +145,20 @@ CLI 默认把工作区偏好和常用字典缓存到 `.pingcode-skill/cache.json
 - 用户列表或项目成员列表
 - 工作项状态字典
 
+推荐用交互命令初始化当前上下文：
+
+```bash
+python3 scripts/pingcode_ctx.py
+```
+
+该命令会引导选择当前项目、当前迭代和当前用户，并写入同一个工作区缓存。通过 npm 安装后也可以直接运行：
+
+```bash
+pingcode-ctx
+```
+
+使用 `$pingcode` skill 执行常规工作项查询或创建前，应先确认工作区缓存里有 `current_user_id`、`current_project_id`、`current_sprint_id`。缺少任一项时先运行 `pingcode-ctx`，完成后再重试原来的 PingCode 操作。
+
 首次在一个工作区使用时可以按下面顺序显式初始化：
 
 ```bash
@@ -157,7 +171,7 @@ python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
 ```
 
-如果查询工作项时缺少当前项目或当前迭代，CLI 会自动拉取并缓存项目/迭代列表，输出可选择的 JSON 选项和对应的 `--set-current-project` / `--set-current-sprint` 命令，然后以非零状态退出。agent 应把这些选项给用户选择，缓存用户选择后再重试原查询。
+如果查询或创建工作项时工作区上下文不完整，CLI 会提示先运行 `pingcode-ctx`。agent 应先完成交互式上下文初始化，再重试原查询或创建命令。没有交互终端时，才使用下面的 `--cache-*` / `--set-current-*` 命令手动初始化。
 
 如果租户没有全局用户列表接口，`--cache-users --project-id PROJECT_ID` 会缓存项目成员。之后查询“某某的工作项”时可以直接使用缓存：
 

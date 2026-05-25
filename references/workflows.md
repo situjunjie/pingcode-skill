@@ -24,6 +24,18 @@ The CLI accepts identity placeholders:
 
 Use the workspace cache before routine queries so repeated API calls stay low. Setup can be explicit:
 
+Before routine work item queries or creates, ensure `.pingcode-skill/cache.json` has `preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`. If any of them is missing, run the interactive setup first, then retry the original operation.
+
+For interactive setup, run:
+
+```bash
+python3 scripts/pingcode_ctx.py
+```
+
+This guides the user to choose a project, sprint/iteration, and current user, then caches those choices.
+
+Manual setup is also available:
+
 ```bash
 python3 scripts/pingcode.py --cache-projects
 python3 scripts/pingcode.py --set-current-project PROJECT_ID
@@ -34,7 +46,7 @@ python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
 ```
 
-If a work item query needs a current project or sprint and the preference is missing, the CLI fetches and caches the relevant list, returns selectable JSON options plus the exact `--set-current-project` or `--set-current-sprint` command, and exits non-zero. Ask the user to choose one returned option, cache that selection, then retry the original query.
+If a work item query or create command needs current user/project/sprint defaults and the workspace cache is incomplete, run `python3 scripts/pingcode_ctx.py` before retrying. Use manual cache commands only when an interactive terminal is unavailable.
 
 `--cache-users` uses the cached current project or `--project-id` to cache project members. It falls back to `/v1/directory/users` only when no project is available. Cached user lists let agents answer "xxx 的工作项" with `--param assignee_ids=@user:xxx` without another lookup.
 

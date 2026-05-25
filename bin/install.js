@@ -11,7 +11,7 @@ const codexHome = process.env.CODEX_HOME
   : defaultCodexHome;
 const skillName = process.env.PINGCODE_SKILL_NAME || "pingcode";
 const targetDir = path.join(codexHome, "skills", skillName);
-const sourceEntries = ["SKILL.md", "README.md", "agents", "references", "scripts"];
+const sourceEntries = ["SKILL.md", "README.md", "agents", "references", "scripts", "bin/pingcode-ctx.js"];
 
 function usage() {
   return [
@@ -48,7 +48,11 @@ function parseArgs(argv) {
 
 function copyEntry(name, destinationRoot) {
   const source = path.join(packageRoot, name);
-  const destination = path.join(destinationRoot, name);
+  const sourceStat = fs.statSync(source);
+  const destination = sourceStat.isDirectory()
+    ? path.join(destinationRoot, name)
+    : path.join(destinationRoot, path.dirname(name), path.basename(name));
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.cpSync(source, destination, {
     recursive: true,
     errorOnExist: false,
@@ -65,6 +69,7 @@ function shellQuote(value) {
 
 function rewriteInstalledDocs(destinationRoot) {
   const cliCommand = `python3 ${shellQuote(path.join(destinationRoot, "scripts", "pingcode.py"))}`;
+  const ctxCommand = `python3 ${shellQuote(path.join(destinationRoot, "scripts", "pingcode_ctx.py"))}`;
   const docs = [
     path.join(destinationRoot, "SKILL.md"),
     path.join(destinationRoot, "README.md"),
@@ -76,7 +81,9 @@ function rewriteInstalledDocs(destinationRoot) {
       continue;
     }
     const original = fs.readFileSync(file, "utf8");
-    const rewritten = original.replaceAll("python3 scripts/pingcode.py", cliCommand);
+    const rewritten = original
+      .replaceAll("python3 scripts/pingcode_ctx.py", ctxCommand)
+      .replaceAll("python3 scripts/pingcode.py", cliCommand);
     if (rewritten !== original) {
       fs.writeFileSync(file, rewritten);
     }

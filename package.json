@@ -1,6 +1,6 @@
 {
   "name": "pingcode-skill",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Install the PingCode Codex skill with npx.",
   "license": "MIT",
   "repository": {
@@ -8,7 +8,8 @@
     "url": "git+https://github.com/situjunjie/pingcode-skill.git"
   },
   "bin": {
-    "pingcode-skill": "./bin/install.js"
+    "pingcode-skill": "./bin/install.js",
+    "pingcode-ctx": "./bin/pingcode-ctx.js"
   },
   "files": [
     "SKILL.md",
@@ -17,7 +18,9 @@
     "references/workflows.md",
     "scripts/__init__.py",
     "scripts/pingcode.py",
+    "scripts/pingcode_ctx.py",
     "bin/install.js",
+    "bin/pingcode-ctx.js",
     "README.md"
   ],
   "scripts": {

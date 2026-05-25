@@ -21,6 +21,8 @@ DEFAULT_BASE_URL = "https://open.pingcode.com"
 DEFAULT_TOKEN_CACHE = "~/.cache/pingcode-skill/token.json"
 DEFAULT_WORKSPACE_CACHE = ".pingcode-skill/cache.json"
 CLI_COMMAND = f"python3 {shlex.quote(str(Path(__file__).resolve()))}"
+CTX_COMMAND = f"python3 {shlex.quote(str(Path(__file__).with_name('pingcode_ctx.py').resolve()))}"
+CTX_COMMAND_ALIAS = "pingcode-ctx"
 MAX_TOKEN_TTL_SECONDS = 29 * 24 * 60 * 60
 HTTP_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 USER_LOOKUP_RE = re.compile(r"@user:([^,]+)")
@@ -41,14 +43,18 @@ USER_ENV_GUIDANCE = (
     "To discover IDs, run:\n"
     f"  {CLI_COMMAND} --cache-users\n"
     "Then save your current user with:\n"
-    f"  {CLI_COMMAND} --set-current-user USER_ID"
+    f"  {CLI_COMMAND} --set-current-user USER_ID\n"
+    "For guided workspace setup, run:\n"
+    f"  {CTX_COMMAND_ALIAS}\n"
+    "Or use the bundled script directly:\n"
+    f"  {CTX_COMMAND}"
 )
 WORKSPACE_DEFAULT_GUIDANCE = (
-    "Workspace defaults are missing. Cache and set the current project/sprint, or explicitly opt out:\n"
-    f"  {CLI_COMMAND} --cache-projects\n"
-    f"  {CLI_COMMAND} --set-current-project PROJECT_ID\n"
-    f"  {CLI_COMMAND} --cache-sprints --project-id PROJECT_ID\n"
-    f"  {CLI_COMMAND} --set-current-sprint SPRINT_ID\n"
+    "PingCode workspace context is incomplete. Run the interactive setup command first:\n"
+    f"  {CTX_COMMAND_ALIAS}\n"
+    "Or use the bundled script directly:\n"
+    f"  {CTX_COMMAND}\n"
+    "It caches the current user, project, and sprint/iteration in .pingcode-skill/cache.json.\n"
     "Use --all-projects or --all-sprints when the user explicitly asks for all projects or all iterations."
 )
 MAX_SELECTION_OPTIONS = 20
@@ -675,35 +681,12 @@ def apply_default_work_item_filters(
     if not all_projects and "project_ids" not in result:
         project_id = preferences.get("current_project_id")
         if not isinstance(project_id, str) or not project_id:
-            if not discover_missing_defaults:
-                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
-            projects = cache_projects(client)
-            raise PingCodeError(
-                selection_guidance(
-                    "project",
-                    projects,
-                    f"{CLI_COMMAND} --set-current-project PROJECT_ID_OR_NAME",
-                    "Fetched and cached the project list.",
-                )
-            )
+            raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
         result["project_ids"] = project_id
     if not all_sprints and "sprint_ids" not in result:
         sprint_id = preferences.get("current_sprint_id")
         if not isinstance(sprint_id, str) or not sprint_id:
-            if not discover_missing_defaults:
-                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
-            project_id = result.get("project_ids")
-            if not isinstance(project_id, str) or not project_id:
-                raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
-            sprints = cache_sprints(client, project_id)
-            raise PingCodeError(
-                selection_guidance(
-                    "sprint",
-                    sprints,
-                    f"{CLI_COMMAND} --set-current-sprint SPRINT_ID_OR_NAME",
-                    "Fetched and cached the sprint list for the current project.",
-                )
-            )
+            raise PingCodeError(WORKSPACE_DEFAULT_GUIDANCE)
         result["sprint_ids"] = sprint_id
     return expand_identity_placeholders(
         result,
@@ -711,6 +694,51 @@ def apply_default_work_item_filters(
         user_name=user_name,
         workspace_cache=client.workspace_cache,
     ) or {}
+
+
+def ensure_work_item_workspace_context(
+    path: str,
+    client: PingCodeClient,
+    method: str = "GET",
+    current_user: bool = True,
+    all_projects: bool = False,
+    all_sprints: bool = False,
+) -> None:
+    if normalize_path(path, base_url=client.base_url) != "/v1/project/work_items":
+        return
+    if method.upper() not in {"GET", "POST"}:
+        return
+    preferences = client.workspace_cache.get("preferences") or {}
+    required = []
+    if current_user:
+        required.append("current_user_id")
+    if not all_projects:
+        required.append("current_project_id")
+    if not all_sprints:
+        required.append("current_sprint_id")
+    missing = [key for key in required if not isinstance(preferences.get(key), str) or not preferences.get(key)]
+    if missing:
+        raise PingCodeError(f"{WORKSPACE_DEFAULT_GUIDANCE}\nMissing preferences: {', '.join(missing)}")
+
+
+def apply_default_work_item_create_body(
+    method: str,
+    path: str,
+    body: dict[str, Any] | None,
+    client: PingCodeClient,
+    user_id: str | None = None,
+    current_user: bool = True,
+) -> dict[str, Any] | None:
+    if (
+        method.upper() != "POST"
+        or normalize_path(path, base_url=client.base_url) != "/v1/project/work_items"
+        or body is None
+    ):
+        return body
+    result = dict(body)
+    if current_user and "assignee_id" not in result:
+        result["assignee_id"] = current_user_id(user_id, workspace_cache=client.workspace_cache)
+    return result
 
 
 def path_is_list_work_items(path: str, base_url: str = DEFAULT_BASE_URL) -> bool:
@@ -827,6 +855,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         user_name=args.user_name,
         workspace_cache=workspace_cache,
     ) or {}
+    ensure_work_item_workspace_context(
+        args.path,
+        client,
+        method=args.method,
+        current_user=not args.all_users,
+        all_projects=args.all_projects,
+        all_sprints=args.all_sprints,
+    )
     if args.method == "GET":
         params = apply_default_work_item_filters(
             args.path,
@@ -839,16 +875,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             all_sprints=args.all_sprints,
             discover_missing_defaults=not args.dry_run,
         )
+    body = expand_identity_placeholders(
+        parse_json_object(args.data, "--data"),
+        user_id=args.user_id,
+        user_name=args.user_name,
+        workspace_cache=workspace_cache,
+    )
+    body = apply_default_work_item_create_body(
+        args.method,
+        args.path,
+        body,
+        client,
+        user_id=args.user_id,
+        current_user=not args.all_users,
+    )
     return client.request(
         args.method,
         args.path,
         params=params,
-        body=expand_identity_placeholders(
-            parse_json_object(args.data, "--data"),
-            user_id=args.user_id,
-            user_name=args.user_name,
-            workspace_cache=workspace_cache,
-        ),
+        body=body,
         dry_run=args.dry_run,
         use_workspace_cache=not args.no_cache_read,
     )

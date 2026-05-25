@@ -46,6 +46,16 @@ You may also pass one-off values with `--client-id`, `--client-secret`, `--user-
 
 The CLI keeps a local workspace cache at `.pingcode-skill/cache.json` by default. This file stores user/project/sprint preferences plus cached user lists and status dictionaries, so agents can avoid repeat list/dictionary API calls.
 
+Before using this skill for routine PingCode work item operations, check that the workspace cache has `preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`. If any of them is missing, run the interactive setup command first and then retry the original PingCode operation:
+
+For interactive setup, run:
+
+```bash
+python3 scripts/pingcode_ctx.py
+```
+
+This command guides the user to choose the current project, sprint/iteration, and user, then writes those preferences to the workspace cache.
+
 Initial setup for a workspace can be explicit:
 
 ```bash
@@ -58,7 +68,7 @@ python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
 python3 scripts/pingcode.py --cache-states --work-item-type-id TYPE_ID
 ```
 
-If a work item query needs a current project or sprint and that preference is missing, the CLI fetches and caches the project/sprint list, prints selectable JSON options plus the exact `--set-current-project` or `--set-current-sprint` command, and exits non-zero so the agent can ask the user to choose before retrying.
+If a work item query or create command needs the current user/project/sprint and the cache is incomplete, run `python3 scripts/pingcode_ctx.py` to complete the workspace context before retrying. Use the manual `--cache-*` / `--set-current-*` commands only when an interactive terminal is not available.
 
 If the global user-list endpoint is unavailable for a tenant, `--cache-users --project-id PROJECT_ID` caches project members instead. When the user asks for another person's work items, prefer cached lookup such as `--param assignee_ids=@user:Alice`; refresh with `--cache-users` only if the person is not in the cache.
 
