@@ -222,6 +222,74 @@ def page_values(payload: Any) -> list[dict[str, Any]]:
     return [item for item in values if isinstance(item, dict)]
 
 
+def nested_text(value: Any, key: str) -> Any:
+    if isinstance(value, dict):
+        nested = value.get(key)
+        if isinstance(nested, dict):
+            return nested.get("display_name") or nested.get("name") or nested.get("identifier") or nested.get("id")
+        return nested
+    return None
+
+
+def compact_business_item(item: dict[str, Any]) -> dict[str, Any]:
+    fields = (
+        "id",
+        "identifier",
+        "short_id",
+        "type",
+        "title",
+        "name",
+        "display_name",
+        "state",
+        "priority",
+        "project",
+        "sprint",
+        "parent",
+        "assignee",
+        "html_url",
+    )
+    compact: dict[str, Any] = {}
+    for key in fields:
+        if key not in item:
+            continue
+        value = item[key]
+        if isinstance(value, dict):
+            text = nested_text(item, key)
+            if text is not None:
+                compact[key] = text
+        elif value not in (None, "", [], {}):
+            compact[key] = value
+    state = item.get("state")
+    if isinstance(state, dict) and state.get("type"):
+        compact["state_type"] = state.get("type")
+    parent = item.get("parent")
+    if isinstance(parent, dict):
+        if parent.get("identifier"):
+            compact["parent_identifier"] = parent.get("identifier")
+        if parent.get("title"):
+            compact["parent_title"] = parent.get("title")
+    parent_id = item.get("parent_id")
+    if parent_id and "parent_identifier" not in compact:
+        compact["parent_id"] = parent_id
+    return compact
+
+
+def compact_response(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    values = page_values(payload)
+    if values:
+        result: dict[str, Any] = {
+            "page_size": payload.get("page_size"),
+            "page_index": payload.get("page_index"),
+            "total": payload.get("total"),
+            "count": len(values),
+            "values": [compact_business_item(item) for item in values],
+        }
+        return {key: value for key, value in result.items() if value is not None}
+    return compact_business_item(payload)
+
+
 def normalized_entity(item: dict[str, Any]) -> dict[str, Any]:
     nested_user = item.get("user")
     if not isinstance(nested_user, dict):
@@ -1055,6 +1123,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--param", action="append", help="Query parameter as key=value; repeatable")
     parser.add_argument("--data", help="JSON object request body for POST/PUT/PATCH")
     parser.add_argument("--dry-run", action="store_true", help="Print request without sending it")
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Print a compact business-field response instead of full raw JSON",
+    )
     return parser
 
 
@@ -1165,7 +1238,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         user_id=args.user_id,
         current_user=not args.all_users,
     )
-    return client.request(
+    result = client.request(
         args.method,
         args.path,
         params=params,
@@ -1173,6 +1246,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         dry_run=args.dry_run,
         use_workspace_cache=not args.no_cache_read,
     )
+    if args.compact and not args.dry_run:
+        return compact_response(result)
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:

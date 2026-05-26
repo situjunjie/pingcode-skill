@@ -74,6 +74,7 @@ Questions to answer:
 - CLI cache helper commands: `--cache-users`, `--cache-projects`, `--cache-sprints`, `--cache-work-item-types`, `--cache-work-item-priorities`, `--cache-work-item-properties`, `--cache-states`, `--cache-idea-states`, `--cache-idea-priorities`, `--set-current-user`, `--set-current-project`, `--set-current-sprint`.
 - CLI agent frontend helper: `--context-options project|sprint|user` prints compact JSON options for chat-based project/sprint/user selection.
 - CLI default-filter opt-outs: `--all-users`, `--all-projects`, `--all-sprints`.
+- CLI response-size control: `--compact` returns business fields only for model consumption and must be used by default for list/query responses that would otherwise produce long raw JSON.
 - Product dictionary cache helpers require `--product-id`.
 - `pingcode-ctx` must interactively select and cache the current user, current project, and current sprint/iteration in the same workspace cache format as `scripts/pingcode.py`.
 - The `$pingcode-ctx` skill must use agent-fronted Q&A by default: list compact options, ask the user for one numbered/id/name choice in chat, then write the selection with `--set-current-*`.
@@ -86,6 +87,8 @@ Questions to answer:
 - Current-user identity comes from `--user-id`, `PINGCODE_USER_ID`, or cached `preferences.current_user_id`; if absent, ask the user to cache/select their PingCode identity.
 - Routine work item create/query workflows must require a complete workspace context (`preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`) unless the user explicitly opts out with the relevant all-* flag.
 - If routine work item create/query workflows find incomplete workspace context, they must guide the user to run `pingcode-ctx` before retrying rather than silently making a broad query.
+- Main `SKILL.md` must not duplicate detailed workspace-context initialization steps; the Python CLI owns cache validation/guidance, and `$pingcode-ctx` / `pingcode_ctx.py` owns guided setup.
+- Main `SKILL.md` must not duplicate credential setup examples; the Python CLI owns missing-credential detection and environment guidance.
 - Query work items default to current user, current project, and current sprint/iteration when cached; explicit query params override cached defaults.
 - Work item list queries that need current user/project/sprint defaults but lack any cached preference must exit non-zero with `pingcode-ctx` guidance so agents complete the full context before retrying.
 - Use `--all-users`, `--all-projects`, or `--all-sprints` only when the user explicitly asks for all users/projects/iterations.
@@ -121,6 +124,7 @@ Questions to answer:
 - `key=value` parameters without `=` or with an empty key -> non-zero exit before making an HTTP request.
 - PingCode HTTP 429 -> include retry-after information when present.
 - Non-JSON PingCode response -> non-zero exit with a bounded response preview.
+- `--compact` on a paginated response -> preserve pagination metadata plus compact `values`; drop bulky fields such as descriptions, creator/updater objects, avatars, and raw nested resource URLs.
 
 ### 5. Good/Base/Bad Cases
 
@@ -151,6 +155,7 @@ Questions to answer:
 - Unit tests must cover workspace cache compaction so unneeded API fields are removed while lookup fields remain.
 - Unit tests must cover auth/token behavior without live network calls.
 - Tests must not depend on a real PingCode tenant.
+- Unit tests must cover compact response output preserving business fields while dropping bulky raw JSON fields.
 
 ### 7. Wrong vs Correct
 

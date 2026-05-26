@@ -237,7 +237,7 @@ python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param a
 - “我”的身份：因为使用企业令牌，不能从 token 推断具体用户。优先读取工作区缓存、`PINGCODE_USER_ID` / `PINGCODE_USER_NAME`，或使用 `--user-id` / `--user-name`；如果没有配置，就先运行 `--cache-users` 并让用户选择。
 - 用户占位符：CLI 支持在参数和 JSON 请求体里使用 `@me` 表示当前用户 ID，使用 `@me_name` 表示当前用户名称，使用 `@user:<名称或ID>` 从缓存用户列表解析 ID。如果对应配置不存在，脚本会输出配置引导并退出。
 - “未完成”：查询工作项后，由模型把 `state.type` 为 `pending`、`in_progress` 的项视为未完成，除非用户另有定义。
-- “未解决缺陷”：调用 `/v1/project/work_items`，传 `type_ids=bug` 和负责人过滤，例如 `--param assignee_ids=@me`，再按状态过滤未完成项。
+- “未解决缺陷”：调用 `/v1/project/work_items`，传 `type_ids=bug`、负责人过滤和 `--compact`，例如 `--param assignee_ids=@me`，再按状态过滤未完成项。
 - “在某故事下新增工作项”：先调用 `/v1/project/work_items` 按编号或关键词找到父故事，再调用 `POST /v1/project/work_items` 并传 `parent_id`。
 - 状态更新：优先用缓存状态字典；没有缓存或怀疑过期时运行 `--cache-states`，它会先缓存当前项目的工作项类型字典，再缓存每个类型的状态；只刷新单个类型时传 `--work-item-type-id TYPE_ID`。不要猜 `state_id`。
 

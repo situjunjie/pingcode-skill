@@ -20,6 +20,10 @@ The CLI accepts identity placeholders:
 * `@user:<name-or-id>` expands from cached users.
 * If the required variable is missing, the CLI exits with setup guidance instead of guessing.
 
+## Output Size Rule
+
+Use `--compact` by default for PingCode list/query commands before showing results to the model. This keeps useful business fields and avoids sending long raw JSON. Omit `--compact` only when raw fields are explicitly needed.
+
 ## Workspace Cache Setup
 
 Use the workspace cache before routine queries so repeated API calls stay low. Setup can be explicit:
@@ -107,7 +111,7 @@ If the user explicitly asks for all users, all projects, or all iterations, pass
 ## View My Current Unfinished Tasks
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param page_size=100 --compact
 ```
 
 Use this same current-user filter for generic work item queries unless the user explicitly asks for "所有人" / all users.
@@ -115,7 +119,7 @@ Use this same current-user filter for generic work item queries unless the user 
 Optional filters:
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=story,task --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=story,task --param page_size=100 --compact
 ```
 
 The model should treat state types `pending` and `in_progress` as unfinished unless the user defines a different rule.
@@ -123,7 +127,7 @@ The model should treat state types `pending` and `in_progress` as unfinished unl
 ## View My Unresolved Defects
 
 ```bash
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=bug --param page_size=100
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param type_ids=bug --param page_size=100 --compact
 ```
 
 This returns assigned bugs whose state type is `pending` or `in_progress`.
@@ -133,7 +137,7 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
 1. Find the parent story by identifier or keywords:
 
    ```bash
-   python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param identifier=MND-123
+   python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param identifier=MND-123 --compact
    ```
 
 2. Read `id`, `project.id`, and choose child `type_id`.
@@ -150,7 +154,7 @@ This returns assigned bugs whose state type is `pending` or `in_progress`.
 1. Locate the work item:
 
    ```bash
-   python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param identifier=SCR-123
+   python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param identifier=SCR-123 --compact
    ```
 
 2. Read the work item's `project.id` and `type`.

@@ -7,6 +7,10 @@ description: Use this skill whenever the user mentions PingCode or asks in natur
 
 Use this skill to call PingCode REST APIs safely and repeatably.
 
+## Output Size Rule
+
+Use `--compact` by default for PingCode list/query commands before showing results to the model, especially `/v1/project/work_items`. Only omit `--compact` when the user explicitly needs raw fields or a follow-up operation requires fields not present in compact output.
+
 ## Natural Language Triggers
 
 Use this skill implicitly when the user mentions `PingCode`, `pingcode`, `工作项`, `故事`, `缺陷`, `任务`, `迭代`, `项目进度`, `产品需求`, or asks for actions such as:
@@ -21,62 +25,15 @@ When the request is natural language, map it to the closest CLI workflow below. 
 
 ## Setup
 
-Set credentials in the environment before running scripts:
+Run the requested CLI command directly. If credentials or identity settings are missing, `scripts/pingcode.py` exits with setup guidance; follow that guidance, then retry. Do not ask the user to paste credentials or tokens into chat.
 
-```bash
-export PINGCODE_CLIENT_ID="..."
-export PINGCODE_CLIENT_SECRET="..."
-```
-
-Optional environment variables:
-
-```bash
-export PINGCODE_BASE_URL="https://open.pingcode.com"
-export PINGCODE_TOKEN_CACHE="$HOME/.cache/pingcode-skill/token.json"
-export PINGCODE_WORKSPACE_CACHE=".pingcode-skill/cache.json"
-export PINGCODE_USER_NAME="your PingCode display/name"
-export PINGCODE_USER_ID="your PingCode user id"
-```
-
-You may also pass one-off values with `--client-id`, `--client-secret`, `--user-id`, `--user-name`, and `--workspace-cache` when invoking `scripts/pingcode.py`. Prefer environment variables or a local shell profile for repeated use; prefer a password manager / secret manager that injects environment variables for shared machines or CI. Do not write credentials into tracked files, prompts, or skill docs.
-
-`client_credentials` returns an enterprise token with broad permissions and does not represent a specific human user. For work item create/query requests, default to the configured current user unless the user explicitly says "所有人", "all users", or names another assignee. Use `PINGCODE_USER_ID` / `PINGCODE_USER_NAME`, CLI flags, or the workspace cache; if missing, ask the user to choose their PingCode user after caching users. The CLI supports `@me` for the current user id, `@me_name` for the current user name, and `@user:<name-or-id>` for cached user lookup; it will print setup guidance if the matching value is absent.
+`client_credentials` returns an enterprise token and does not identify a human user. For work item create/query requests, let the CLI apply cached current-user defaults unless the user explicitly asks for "所有人" / all users or names another assignee.
 
 ## Workspace Cache
 
-The CLI keeps a local workspace cache at `.pingcode-skill/cache.json` by default. This file stores user/project/sprint preferences plus cached user lists and status dictionaries, so agents can avoid repeat list/dictionary API calls.
+The CLI owns workspace-cache discovery and validation. Run the requested query/create command first; if cached user/project/sprint context is incomplete, the script exits with guidance. Then invoke `$pingcode-ctx` when available, or run `python3 scripts/pingcode_ctx.py`, and retry the original command.
 
-Before using this skill for routine PingCode work item operations, check that the workspace cache has `preferences.current_user_id`, `preferences.current_project_id`, and `preferences.current_sprint_id`. If any of them is missing, run the interactive setup command first and then retry the original PingCode operation:
-
-For Codex, Claude Code, or another agent frontend, prefer the `$pingcode-ctx` skill when available. It presents project, sprint, and user choices in chat and writes the same workspace cache through non-interactive CLI commands.
-
-For interactive setup, run:
-
-```bash
-python3 scripts/pingcode_ctx.py
-```
-
-This command guides the user to choose the current project, sprint/iteration, and user, then writes those preferences to the workspace cache.
-
-Initial setup for a workspace can be explicit:
-
-```bash
-python3 scripts/pingcode.py --cache-projects
-python3 scripts/pingcode.py --set-current-project PROJECT_ID
-python3 scripts/pingcode.py --cache-sprints
-python3 scripts/pingcode.py --set-current-sprint SPRINT_ID
-python3 scripts/pingcode.py --cache-users
-python3 scripts/pingcode.py --set-current-user USER_ID_OR_CACHED_NAME
-python3 scripts/pingcode.py --cache-states
-python3 scripts/pingcode.py --cache-work-item-priorities
-python3 scripts/pingcode.py --cache-work-item-properties
-```
-
-If a work item query or create command needs the current user/project/sprint and the cache is incomplete, run `python3 scripts/pingcode_ctx.py` to complete the workspace context before retrying. Use the manual `--cache-*` / `--set-current-*` commands only when an interactive terminal is not available.
-
-If the global user-list endpoint is unavailable for a tenant, `--cache-users --project-id PROJECT_ID` caches project members instead. When the user asks for another person's work items, prefer cached lookup such as `--param assignee_ids=@user:Alice`; refresh with `--cache-users` only if the person is not in the cache.
-
-For `GET /v1/project/work_items`, the CLI automatically adds `assignee_ids=<current user>`, cached `project_ids=<current project>`, and cached `sprint_ids=<current sprint>` unless those parameters are already supplied. When the user explicitly asks for all users, all projects, or all iterations, pass `--all-users`, `--all-projects`, or `--all-sprints` respectively.
+For work item queries, the CLI automatically applies cached current user/project/sprint filters unless explicit params or `--all-users`, `--all-projects`, or `--all-sprints` are supplied.
 
 ## Main Tool
 
@@ -95,7 +52,7 @@ Common commands:
 
 ```bash
 python3 scripts/pingcode.py --method GET --path /v1/project/projects --param page_size=20
-python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20
+python3 scripts/pingcode.py --method GET --path /v1/project/work_items --param assignee_ids=@me --param project_ids=PROJECT_ID --param page_size=20 --compact
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/types --param project_id=PROJECT_ID
 python3 scripts/pingcode.py --method GET --path /v1/project/work_item/states --param project_id=PROJECT_ID --param work_item_type_id=TYPE_ID
 python3 scripts/pingcode.py --method POST --path /v1/project/work_items --data '{"project_id":"PROJECT_ID","type_id":"story","title":"New story","assignee_id":"@me"}'
@@ -110,7 +67,7 @@ All output is JSON by default so agents can parse it reliably.
 ## Workflow
 
 1. Read [`references/workflows.md`](references/workflows.md) before mutating PingCode data.
-2. Resolve names to IDs using list commands. PingCode write APIs usually require IDs.
+2. Resolve names to IDs using list commands, with `--compact` by default for list/query output. PingCode write APIs usually require IDs.
 3. Execute write commands directly once the target project/product/work item and state IDs are unambiguous.
 4. Use `--dry-run` only when the target or payload is unusually risky and the user wants a manual preview.
 5. For any endpoint, use the single `scripts/pingcode.py --method/--path` command and consult [`references/api.md`](references/api.md).
@@ -121,6 +78,7 @@ All output is JSON by default so agents can parse it reliably.
 * Never infer a human user from an enterprise token. For work item create/query requests, default to `@me` only when a current user is configured; if the user explicitly asks for "所有人" / all users, do not add `assignee_ids=@me` or `assignee_id=@me`.
 * For status changes, use cached states when present; otherwise fetch valid states for the work item project and type before patching. Refresh stale type/state dictionaries with `--cache-states`; pass `--work-item-type-id TYPE_ID` only when refreshing one type.
 * For work item creates/updates that need `priority_id` or custom `properties`, refresh dictionaries with `--cache-work-item-priorities` and `--cache-work-item-properties`.
+* Prefer `--compact` for list/query responses before showing data to the model. Do not pipe raw PingCode JSON through `jq` only to reduce length; let `scripts/pingcode.py` keep useful business fields and drop bulky raw fields.
 * Treat HTTP 429 as rate limit. Wait for `x-pc-retry-after` seconds before retrying.
 * Prefer the narrowest query possible. Pagination defaults to 30 and maxes at 100.
 * Do not echo token values in final answers.

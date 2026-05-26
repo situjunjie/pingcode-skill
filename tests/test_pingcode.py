@@ -111,6 +111,64 @@ class PingCodeCliTests(unittest.TestCase):
         self.assertEqual(result["json"]["type_id"], "story")
         self.assertEqual(result["json"]["assignee_id"], "user-1")
 
+    def test_compact_work_item_response_keeps_business_fields(self):
+        parser = pingcode.build_parser()
+        args = parser.parse_args(
+            [
+                "--token",
+                "token-1",
+                "--method",
+                "GET",
+                "--path",
+                "/v1/project/work_items",
+                "--param",
+                "page_size=100",
+                "--compact",
+                "--all-users",
+                "--all-projects",
+                "--all-sprints",
+            ]
+        )
+        payload = {
+            "page_size": 100,
+            "page_index": 0,
+            "total": 1,
+            "values": [
+                {
+                    "id": "wi-1",
+                    "identifier": "SCR-1",
+                    "type": "story",
+                    "title": "Long raw item",
+                    "description": "large markdown body",
+                    "state": {"id": "state-1", "name": "进行中", "type": "in_progress", "color": "#fff"},
+                    "priority": {"id": "high", "name": "高"},
+                    "project": {"id": "project-1", "name": "Core", "url": "https://example"},
+                    "parent": {"id": "parent-1", "identifier": "SCR-0", "title": "Parent"},
+                    "assignee": {"id": "user-1", "display_name": "Alice", "avatar": "https://example/avatar.png"},
+                    "html_url": "https://example/workitems/SCR-1",
+                    "created_by": {"id": "user-2"},
+                }
+            ],
+        }
+
+        with mock.patch("urllib.request.urlopen", return_value=FakeResponse(payload)):
+            result = pingcode.run(args)
+
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["count"], 1)
+        item = result["values"][0]
+        self.assertEqual(item["identifier"], "SCR-1")
+        self.assertEqual(item["state"], "进行中")
+        self.assertEqual(item["state_type"], "in_progress")
+        self.assertEqual(item["priority"], "高")
+        self.assertEqual(item["project"], "Core")
+        self.assertEqual(item["assignee"], "Alice")
+        self.assertEqual(item["parent_identifier"], "SCR-0")
+        self.assertEqual(item["parent_title"], "Parent")
+        self.assertNotIn("description", item)
+        self.assertNotIn("created_by", item)
+        self.assertNotIn("avatar", json.dumps(item, ensure_ascii=False))
+
     def test_workitem_create_defaults_assignee_from_cached_current_user(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "workspace.json"
