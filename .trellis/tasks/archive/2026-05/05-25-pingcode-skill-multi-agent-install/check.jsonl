@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify installer change still satisfies the npm Skill Installer Contracts and CLI doc-rewrite rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify per-root failure isolation matches error-handling conventions."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify index.html updates follow frontend quality conventions."}

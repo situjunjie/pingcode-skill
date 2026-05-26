@@ -43,7 +43,6 @@ token.json
 .claude/skills/
 
 # Trellis local workflow state
-.trellis/
 .pingcode-skill/
 # OS / editor
 .DS_Store

@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "npm Skill Installer Contracts section governs bin/install.js behavior, doc rewriting and packaging rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Per-root install failure isolation must follow error-handling conventions for the Node CLI."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "index.html landing-page changes (one-shot install command, update row, hero meta chips) should follow frontend component conventions."}
