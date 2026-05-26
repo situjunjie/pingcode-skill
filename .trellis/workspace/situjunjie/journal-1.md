@@ -239,3 +239,52 @@ Default npx pingcode-skill@latest now installs pingcode + pingcode-ctx into all 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: PingCode skill cache and installer updates
+
+**Date**: 2026-05-26
+**Task**: PingCode skill cache and installer updates
+**Branch**: `main`
+
+### Summary
+
+Updated PingCode skill installation targeting, default write behavior, workspace dictionary caching, atomic compact cache writes, and cache field trimming.
+
+### Main Changes
+
+- Installer now installs PingCode skills only into agent homes that already exist for the current user.
+- PingCode write operations no longer default to dry-run after development validation.
+- Workspace cache now includes work item types/states, work item priorities/properties, and idea states/priorities.
+- Cache writes are atomic and compacted to remove unnecessary url/color/avatar/email-style fields.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `442867e` | (see git log) |
+| `c120fb3` | (see git log) |
+| `21ce27b` | (see git log) |
+| `ee2abbd` | (see git log) |
+| `18b2516` | (see git log) |
+| `ada01a6` | (see git log) |
+| `e368906` | (see git log) |
+| `78cb326` | (see git log) |
+| `8d7193d` | (see git log) |
+| `e65f87a` | (see git log) |
+| `62ee248` | (see git log) |
+
+### Testing
+
+- [OK] `python3 -m unittest` passed 47 tests.
+- [OK] `npm --cache /private/tmp/pingcode-skill-npm-cache pack --dry-run` completed.
+- [OK] `git diff --check` completed.
+- [OK] Live cache test populated six configured dictionaries.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

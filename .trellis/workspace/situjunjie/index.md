@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-05-25
+- **Total Sessions**: 8
+- **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~241 | Active |
+| `journal-1.md` | ~284 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-05-26 | PingCode skill cache and installer updates | `442867e`, `c120fb3`, `21ce27b`, `ee2abbd`, `18b2516`, `ada01a6`, `e368906`, `78cb326`, `8d7193d`, `e65f87a`, `62ee248` | `main` |
 | 7 | 2026-05-25 | Multi-agent installer for npx pingcode-skill | `def63d1` | `main` |
 | 6 | 2026-05-25 | Add GitHub Pages landing page | `e297f8e` | `main` |
 | 5 | 2026-05-25 | PingCode workspace context setup | `0253955` | `main` |
