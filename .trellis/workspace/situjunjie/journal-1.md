@@ -288,3 +288,36 @@ Updated PingCode skill installation targeting, default write behavior, workspace
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: PingCode compact output cleanup
+
+**Date**: 2026-05-26
+**Task**: PingCode compact output cleanup
+**Branch**: `main`
+
+### Summary
+
+Reduced PingCode query output to compact business fields by default and trimmed skill context/docs to prefer script-owned cache guidance.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cc3306c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
